@@ -39,7 +39,7 @@ class Dataset(db.Model):
 class DataInstance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.String(256), nullable=False)
-    labels = db.Column(db.ARRAY(db.String), nullable=False)
+    labels = db.Column(db.ARRAY(db.String), nullable=True)
     dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
 
     def __repr__(self):
