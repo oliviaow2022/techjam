@@ -6,9 +6,11 @@ pip install flask
 pip install flask-sqlalchemy
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install pandas
+pip install PyJWT
+
 ```
 
 ### Running
 ```
-flask --app backend init-db
+flask run --debug
 ```

@@ -5,15 +5,17 @@ dataset_routes = Blueprint('dataset', __name__)
 
 @dataset_routes.route('/create', methods=['POST'])
 def create_dataset():
-    data = request.get_json()
-    if not data or not 'name' in data or not 'project_id' in data:
+    project_id = request.json.get('project_id')
+    name = request.json.get('name')
+
+    if not (project_id or name):
         return jsonify({"error": "Bad Request", "message": "Name and project_id are required"}), 400
 
-    project = Project.query.get(data['project_id'])
+    project = Project.query.get(project_id)
     if not project:
         return jsonify({"error": "Not Found", "message": "Project not found"}), 404
 
-    dataset = Dataset(name=data['name'], project_id=project.id)
+    dataset = Dataset(name=name, project_id=project.id)
     db.session.add(dataset)
     db.session.commit()
 

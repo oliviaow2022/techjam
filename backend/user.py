@@ -1,20 +1,25 @@
-from flask import Blueprint, request, jsonify
-from models import db, User
+from flask import Blueprint, request, jsonify, session
+from models import db, User, Project
+# import jwt
+from datetime import datetime
+from app import app
 
 user_routes = Blueprint('user', __name__)
 
 @user_routes.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    if not data or not 'username' in data or not 'email' in data or not 'password' in data:
+    username = request.json.get('username')
+    email = request.json.get('email')
+    password = request.json.get('password')
+
+    if not (username or email or password):
         return jsonify({"error": "Bad Request", "message": "Username, email, and password are required"}), 400
 
-    username = data['username']
-    email = data['email']
-    password = data['password']
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Conflict", "message": "Username already exists"}), 409
 
-    if User.query.filter_by(username=username).first() or User.query.filter_by(email=email).first():
-        return jsonify({"error": "Conflict", "message": "Username or email already exists"}), 409
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Conflict", "message": "Email already exists"}), 409
 
     user = User(username=username, email=email)
     user.set_password(password)
@@ -26,8 +31,38 @@ def register():
 
 @user_routes.route('/login', methods=['POST'])
 def login():
-    # Login logic
-    pass
+    username = request.json.get('username')
+    password = request.json.get('password')
+
+    if not (username or password):
+        return jsonify({"error": "Bad Request", "message": "Username and password are required"}), 400 
+
+    user = User.query.filter_by(username=username).first()
+
+    if user and user.check_password(password):
+        session['user_id'] = user.id  # Store user ID in session
+        # token = jwt.encode({'user_id': user.id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)}, app.config['SECRET_KEY'])
+        # return jsonify({'token': token}), 200
+    else:
+        # Invalid credentials
+        return jsonify({'message': 'Login failed. Please check your username and password'}), 401
+
+
+@user_routes.route('/all', methods=['GET'])
+def get_all_users():
+    users = User.query.all()
+
+    user_list = []
+    for user in users:
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email
+        }
+        user_list.append(user_data)
+
+    return jsonify({'users': user_list}), 200
+
 
 
 @user_routes.route('/<int:user_id>/projects', methods=['GET'])
@@ -37,7 +72,7 @@ def get_user_projects(user_id):
         return jsonify({"error": "Not Found", "message": "User not found"}), 404
 
     projects = Project.query.filter_by(user_id=user_id).all()
-    projects_list = [{"id": project.id, "name": project.name, "description": project.description} for project in projects]
+    projects_list = [{"id": project.id, "name": project.name} for project in projects]
 
     return jsonify({"projects": projects_list}), 200
 
