@@ -11,6 +11,15 @@ pip install PyJWT
 ```
 
 ### Running
+
+
 ```
-flask run --debug
+flask run --debug 
 ```
+
+If access to localhost is denied:
+```
+python app.py
+```
+
+https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
