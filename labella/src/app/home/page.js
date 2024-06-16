@@ -19,7 +19,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col gap-8">
                 <div className="flex justify-center gap-8">
-                    <div className="bg-[#3FEABF] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col">
+                    <div className="bg-[#3FEABF] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
                         <Image
                             src="/sentiment analysis.png"
                             width={150}
@@ -28,7 +28,7 @@ export default function Home() {
                         />
                         <p className="mt-2">Sentiment Analysis</p>
                     </div>
-                    <div className="bg-[#FF52BF] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col">
+                    <div className="bg-[#FF52BF] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
                         <Image
                             src="/image classification.png"
                             width={150}
@@ -39,7 +39,7 @@ export default function Home() {
                     </div>
                 </div>
                 <div className="flex justify-center gap-8">
-                    <div className="bg-[#D887F5] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col">
+                    <div className="bg-[#D887F5] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
                         <Image
                             src="/object detection.png"
                             width={130}
@@ -48,7 +48,7 @@ export default function Home() {
                         />
                         <p className="mt-4">Object Detection</p>
                     </div>
-                    <div className="bg-[#1ED2EC] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col">
+                    <div className="bg-[#1ED2EC] h-56 w-96 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
                         <Image
                             src="/information extraction.png"
                             width={130}
