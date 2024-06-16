@@ -150,6 +150,7 @@ def validate_epoch(model, dataloader, criterion, device):
     accuracy = correct / total
     return epoch_loss, accuracy
 
+
 def train_model(model, criterion, optimizer, scheduler, num_epochs=3):
     since = time.time()
 

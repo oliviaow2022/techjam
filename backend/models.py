@@ -82,7 +82,7 @@ class DataInstance(db.Model):
         }
 
     def __repr__(self):
-        return f'<DataInstance {self.id}>'
+        return f'<DataInstance {self.data}>'
     
     
 class Model(db.Model):
@@ -98,4 +98,47 @@ class Model(db.Model):
         }
 
     def __repr__(self):
-        return f'<Model {self.id}>'
+        return f'<Model {self.name}>'
+    
+
+class History(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    accuracy = db.Column(db.Float, nullable=False)
+    precision = db.Column(db.Float, nullable=False)
+    recall = db.Column(db.Float, nullable=False)
+    f1 = db.Column(db.Float, nullable=False)
+    auc = db.Column(db.Float, nullable=True)
+    model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "accuracy": self.accuracy,
+            "precision": self.precision,
+            "recall": self.recall,
+            "f1": self.f1,
+            "auc": self.auc,
+        }
+    
+    
+class Epoch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    epoch = db.Column(db.Integer, nullable=False)
+    train_acc = db.Column(db.Float, nullable=False)
+    val_acc = db.Column(db.Float, nullable=False)
+    train_loss = db.Column(db.Float, nullable=False)
+    val_loss = db.Column(db.Float, nullable=False)
+    model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
+    history_id = db.Column(db.Integer, db.ForeignKey('history.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "epoch": self.epoch,
+            "train_acc": self.train_acc,
+            "val_acc": self.val_acc,
+            "train_loss": self.train_loss,
+            "val_loss": self.val_loss,
+            "model_id": self.model_id,
+            "history_id": self.history_id
+        }

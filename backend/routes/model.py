@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify
-from models import db, Model, Project, Dataset
+from models import db, Model, Project, Dataset, History, Epoch
 from S3ImageDataset import S3ImageDataset
 from services.dataset import get_dataframe
 from torch.utils.data import random_split, DataLoader
 from torchvision import transforms, models
 from torch.optim import lr_scheduler
 import torch
-from services.model import train_model
+from services.model import train_model, compute_metrics
 from flasgger import swag_from
+import sklearn.metrics
 
 model_routes = Blueprint('model', __name__)
 
@@ -75,6 +76,8 @@ def create_model():
     ]
 })
 def run_training(id):
+    print('running training...')
+
     NUM_EPOCHS = request.json.get('num_epochs')
     TRAIN_TEST_SPLIT = request.json.get('train_test_split')
     BATCH_SIZE = request.json.get('batch_size')
@@ -107,9 +110,21 @@ def run_training(id):
     optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-    ml_model, history = train_model(ml_model, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
+    ml_model, model_history = train_model(ml_model, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
+    print(model_history)
+    accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 
-    return 200
+    history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model.id)
+
+    db.session.add(history)
+    db.session.commit()
+
+    for i in range(len(model_history)):
+        epoch = Epoch(epoch=i, train_acc=model_history[i][0], val_acc=model_history[i][1], train_loss=model_history[i][2], val_loss=model_history[i][3], model_id=model.id, history_id=history.id)
+        db.session.add(epoch)
+    db.session.commit()
+
+    return jsonify(history.to_dict()), 200
 
 
 @model_routes.route('/<int:id>/label', methods=['GET'])

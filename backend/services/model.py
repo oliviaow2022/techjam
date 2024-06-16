@@ -1,6 +1,7 @@
 import torch
 import os, time
 from tempfile import TemporaryDirectory
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
@@ -28,6 +29,7 @@ def train_epoch(model, dataloader, criterion, optimizer, device):
     accuracy = correct / total
     return epoch_loss, accuracy
 
+
 def validate_epoch(model, dataloader, criterion, device):
     model.eval()
     running_loss = 0.0
@@ -50,6 +52,7 @@ def validate_epoch(model, dataloader, criterion, device):
     epoch_loss = running_loss / len(dataloader.dataset)
     accuracy = correct / total
     return epoch_loss, accuracy
+
 
 def train_model(model, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, num_epochs=3):
     since = time.time()
@@ -86,3 +89,28 @@ def train_model(model, train_dataloader, val_dataloader, criterion, optimizer, s
         model.load_state_dict(torch.load(best_model_params_path))
 
     return model, history
+
+
+def compute_metrics(model, dataloader, device):
+    model.eval()
+
+    y_labels = []
+    y_pred = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            outputs = model(inputs)
+
+            _, predicted = torch.max(outputs, 1)
+
+            y_labels.extend(labels.numpy())
+            y_pred.extend(predicted.numpy())
+
+    accuracy = accuracy_score(y_labels, y_pred)
+    precision = precision_score(y_labels, y_pred)
+    recall = recall_score(y_labels, y_pred)
+    f1 = f1_score(y_labels, y_pred)
+
+    return accuracy, precision, recall, f1
