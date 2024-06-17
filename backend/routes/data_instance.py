@@ -1,9 +1,28 @@
 from flask import Blueprint, request, jsonify
 from models import db, DataInstance, Dataset
+from flasgger import swag_from
 
 data_instance_routes = Blueprint('data_instance', __name__)
 
 @data_instance_routes.route('/create', methods=['POST'])
+@swag_from({
+    'tags': ['DataInstance'],
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'data': {'type': 'string'},
+                    'dataset_id': {'type': 'integer'}
+                },
+                'required': ['data', 'dataset_id']
+            }
+        }
+    ]
+})
 def create_data_instance():
     data = request.json.get('data')
     dataset_id = request.json.get('dataset_id')
@@ -21,6 +40,32 @@ def create_data_instance():
 
 
 @data_instance_routes.route('/<int:id>/set_label', methods=['POST'])
+@swag_from({
+    'tags': ['DataInstance'],
+    'summary': 'Update label from manual labelling',
+    'parameters': [
+        {
+            'name': 'id',
+            'in': 'path',
+            'required': True,
+            'description': 'ID of the data instance to update',
+            'schema': {'type': 'integer'}
+        },
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'description': 'New labels for the data instance',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'labels': {'type': 'string'}
+                },
+                'required': ['labels']
+            }
+        }
+    ]
+})
 def set_label(id):
     # Get the data instance by ID
     data_instance = DataInstance.query.get_or_404(id, description="Data instance ID not found")

@@ -48,8 +48,9 @@ class Dataset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-    data_instances = db.relationship('DataInstance', backref='dataset', lazy=True)
     num_classes = db.Column(db.Integer, nullable=False)
+    class_to_label_mapping = db.Column(db.JSON, nullable=True)
+    data_instances = db.relationship('DataInstance', backref='dataset', lazy=True)
 
     def to_dict(self):
         return {
@@ -75,7 +76,7 @@ class DataInstance(db.Model):
         return {
             "id": self.id,
             "data": self.data,
-            "labels": [int(num) for num in self.labels.split(',')] if ',' in self.labels else int(self.labels) if self.labels else None,
+            "labels": [int(num) for num in self.labels.split(',')] if self.labels and ',' in self.labels else int(self.labels) if self.labels else None,
             "manually_processed": self.manually_processed,
             "confidence": self.confidence,
             "dataset_id": self.dataset_id,
@@ -89,6 +90,7 @@ class Model(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(256), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    saved = db.Column(db.String(128), nullable=True)
 
     def to_dict(self):
         return {

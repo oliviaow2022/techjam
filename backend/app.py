@@ -55,12 +55,15 @@ def seed():
     db.session.add(project)
     db.session.commit()
 
-    dataset = Dataset(name="Ants and Bees", project_id=project.id, num_classes=2)
+    dataset = Dataset(name="Ants and Bees", project_id=project.id, num_classes=2, class_to_label_mapping={0: 'ants', 1: 'bees'})
     db.session.add(dataset)
     db.session.commit()
 
-    model = Model(name='resnet18', project_id=project.id)
-    db.session.add(model)
+    resnet18 = Model(name='resnet18', project_id=project.id)
+    densenet121 = Model(name='densenet121', project_id=project.id)
+    alexnet = Model(name='alexnet', project_id=project.id)
+    convnext_base = Model(name='convnext_base', project_id=project.id)
+    db.session.add_all([resnet18, densenet121, alexnet, convnext_base])
     db.session.commit()
 
     """Seed the database from a CSV file."""

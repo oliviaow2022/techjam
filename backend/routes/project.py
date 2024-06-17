@@ -1,12 +1,51 @@
 from flask import Blueprint, request, jsonify
 from models import db, User, Project
+from flasgger import swag_from
 
 project_routes = Blueprint('project', __name__)
 
 @project_routes.route('/create', methods=['POST'])
+@swag_from({
+    'tags': ['Project'],
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'name': {
+                        'type': 'string',
+                        'description': 'The name of the project',
+                        'example': 'My Project'
+                    },
+                    'user_id': {
+                        'type': 'integer',
+                        'description': 'The ID of the user creating the project',
+                        'example': 1
+                    },
+                    'bucket': {
+                        'type': 'string',
+                        'description': 'The S3 bucket name (optional)',
+                        'example': 'my-bucket'
+                    },
+                    'prefix': {
+                        'type': 'string',
+                        'description': 'The S3 bucket prefix (optional)',
+                        'example': 'my-prefix'
+                    }
+                },
+                'required': ['name', 'user_id']
+            }
+        }
+    ]}
+)
 def create_project():
     name = request.json.get('name')
     user_id = request.json.get('user_id')
+    bucket = request.json.get('bucket')
+    prefix = request.json.get('prefix')
 
     if not (name or user_id):
         return jsonify({"error": "Bad Request", "message": "Name and user_id are required"}), 400
@@ -14,6 +53,12 @@ def create_project():
     user = User.query.get_or_404(user_id, description="User ID not found")
 
     project = Project(name=name, user_id=user.id)
+
+    if bucket:
+        project.bucket = bucket
+    if prefix:
+        project.prefix = prefix
+
     db.session.add(project)
     db.session.commit()
 

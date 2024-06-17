@@ -33,3 +33,5 @@ python app.py
 ```
 
 https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
+
+https://github.com/munniomer/pytorch-tutorials/blob/master/beginner_source/finetuning_torchvision_models_tutorial.py

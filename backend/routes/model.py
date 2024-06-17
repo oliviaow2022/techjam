@@ -28,6 +28,25 @@ data_transforms = {
 }
 
 @model_routes.route('/create', methods=['POST'])
+@swag_from({
+    'tags': ['Model'],
+    'description': 'model name must be in this list [resnet18, densenet121, alexnet, convnext_base]!!',
+    'parameters': [
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                    'project_id': {'type': 'integer'}
+                },
+                'required': ['name', 'project_id']
+            }
+        }
+    ]
+})
 def create_model():
     name = request.json.get('name')
     project_id = request.json.get('project_id')
@@ -44,10 +63,11 @@ def create_model():
 
 @model_routes.route('/<int:id>/train', methods=['POST'])
 @swag_from({
+    'tags': ['Model'],
     'parameters': [
         {
             'in': 'path',
-            'name': 'id',
+            'name': 'model_id',
             'type': 'integer',
             'required': True,
             'description': 'ID of the model to train'
@@ -87,7 +107,7 @@ def run_training(id):
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
     # only get datainstances with labels
-    df = get_dataframe(dataset.id, return_all=False)
+    df = get_dataframe(dataset.id, return_labelled=True)
 
     s3_dataset = S3ImageDataset(df, project.bucket, project.prefix)
 
@@ -101,17 +121,30 @@ def run_training(id):
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    ml_model = models.resnet18(weights='IMAGENET1K_V1')
-    num_ftrs = ml_model.fc.in_features
-    ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    if model.name == 'resnet18':
+        ml_model = models.resnet18(weights='DEFAULT')
+        num_ftrs = ml_model.fc.in_features
+        ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    elif model.name == 'densenet121':
+        ml_model = models.densenet121(weights='DEFAULT')
+        num_ftrs = ml_model.classifier.in_features
+        ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    elif model.name == 'alexnet':
+        ml_model = models.alexnet(weights='DEFAULT')
+        num_ftrs = ml_model.classifier[6].in_features
+        ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    elif model.name == 'convnext_base':
+        ml_model = models.convnext_base(weights='DEFAULT')
+        num_ftrs = ml_model.classifier[2].in_features
+        ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-    ml_model, model_history = train_model(ml_model, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
-    print(model_history)
+    ml_model, model_history = train_model(ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
+
     accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 
     history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model.id)
@@ -128,8 +161,40 @@ def run_training(id):
 
 
 @model_routes.route('/<int:id>/label', methods=['GET'])
-def run_model():
-    return
+def run_model(id):
+
+    model = Model.query.get_or_404(id, description="Model ID not found")
+    project = Project.query.get_or_404(model.project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+
+    # initialise model
+    if model.name == 'resnet18':
+        ml_model = models.resnet18(weights='DEFAULT')
+        num_ftrs = ml_model.fc.in_features
+        ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+
+    # load in weights
+    ml_model.load_state_dict(torch.load(model.saved))
+    ml_model.eval()
+
+    # only get datainstances with no labels
+    df = get_dataframe(dataset.id, return_labelled=False)
+
+    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix)
+    s3_dataset.transform = data_transforms['val']
+
+    dataloader = DataLoader(s3_dataset, batch_size=32, shuffle=True)
+
+    with torch.no_grad():
+        for images in dataloader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            confidence_levels = torch.nn.functional.softmax(outputs, dim=1)
+            entropy = -torch.sum(confidence_levels * torch.log2(confidence_levels))
+
+
+
+    return 
 
 
 # for debugging only
