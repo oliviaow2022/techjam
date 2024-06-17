@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import db, Dataset, Project, DataInstance
 import pandas as pd
-from services.dataset import get_dataframe
 
 dataset_routes = Blueprint('dataset', __name__)
 
@@ -24,7 +23,10 @@ def create_dataset():
 
 @dataset_routes.route('/<int:id>/df', methods=['GET'])
 def return_dataframe(id):
-    df = get_dataframe(id)
+    dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
+    data_instances = DataInstance.query.filter_by(dataset_id=dataset.id).all()
+    data_list = [instance.to_dict() for instance in data_instances]
+    df = pd.DataFrame(data_list)
     return df.to_json(orient='records')
 
 

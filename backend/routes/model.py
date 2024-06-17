@@ -87,7 +87,7 @@ def run_training(id):
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
     # only get datainstances with labels
-    df = get_dataframe(dataset.id, return_all=False)
+    df = get_dataframe(dataset.id)
 
     s3_dataset = S3ImageDataset(df, project.bucket, project.prefix)
 
@@ -101,17 +101,30 @@ def run_training(id):
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    ml_model = models.resnet18(weights='IMAGENET1K_V1')
-    num_ftrs = ml_model.fc.in_features
-    ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    if model.name == 'resnet18':
+        ml_model = models.resnet18(weights='DEFAULT')
+        num_ftrs = ml_model.fc.in_features
+        ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    elif model.name == 'densenet121':
+        ml_model = models.densenet121(weights='DEFAULT')
+        num_ftrs = ml_model.classifier.in_features
+        ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    elif model.name == 'alexnet':
+        ml_model = models.alexnet(weights='DEFAULT')
+        num_ftrs = ml_model.classifier[6].in_features
+        ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
+    elif model.name == 'convnext_base':
+        ml_model = models.convnext_base(weights='DEFAULT')
+        num_ftrs = ml_model.classifier[2].in_features
+        ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-    ml_model, model_history = train_model(ml_model, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
-    print(model_history)
+    ml_model, model_history = train_model(ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
+
     accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 
     history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model.id)
@@ -129,6 +142,7 @@ def run_training(id):
 
 @model_routes.route('/<int:id>/label', methods=['GET'])
 def run_model():
+
     return
 
 

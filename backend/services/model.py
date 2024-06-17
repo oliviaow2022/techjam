@@ -2,6 +2,8 @@ import torch
 import os, time
 from tempfile import TemporaryDirectory
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from S3ImageDataset import s3
+from models import db
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
@@ -54,7 +56,7 @@ def validate_epoch(model, dataloader, criterion, device):
     return epoch_loss, accuracy
 
 
-def train_model(model, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, num_epochs=3):
+def train_model(model, model_db, project, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, num_epochs=3):
     since = time.time()
 
     # Create a temporary directory to save training checkpoints
@@ -87,6 +89,14 @@ def train_model(model, train_dataloader, val_dataloader, criterion, optimizer, s
 
         # Load best model weights
         model.load_state_dict(torch.load(best_model_params_path))
+
+        # upload model to s3
+        model_path = f'{project.prefix}/{model_db.name}.pth'
+        s3.upload_file(best_model_params_path, project.bucket, model_path)
+        
+        # save model to db
+        model_db.saved = model_path
+        db.session.commit()
 
     return model, history
 
