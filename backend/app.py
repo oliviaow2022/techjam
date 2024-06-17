@@ -74,8 +74,7 @@ def seed():
             data_instance = DataInstance(
                 data=row['filename'],
                 labels=row['label'],
-                dataset_id=1,
-                manually_processed=True
+                dataset_id=1
             )
             db.session.add(data_instance)
         db.session.commit()
