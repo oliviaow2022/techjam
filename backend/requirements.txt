@@ -1,0 +1,5 @@
+Flask
+pandas
+PyJWT
+flask
+flask-sqlalchemy
