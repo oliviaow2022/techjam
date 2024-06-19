@@ -47,9 +47,9 @@ class Project(db.Model):
 class Dataset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
     num_classes = db.Column(db.Integer, nullable=False)
     class_to_label_mapping = db.Column(db.JSON, nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
     data_instances = db.relationship('DataInstance', backref='dataset', lazy=True)
 
     def to_dict(self):
@@ -57,7 +57,8 @@ class Dataset(db.Model):
             "id": self.id,
             "name": self.name,
             "project_id": self.project_id,
-            "num_classes": self.num_classes
+            "num_classes": self.num_classes,
+            "class_to_label_mapping": self.class_to_label_mapping
         }
 
     def __repr__(self):
@@ -69,7 +70,7 @@ class DataInstance(db.Model):
     data = db.Column(db.String(256), nullable=False)
     labels = db.Column(db.String(256), nullable=True) # list of labels separated by commas
     manually_processed = db.Column(db.Boolean, default=False, nullable=False)
-    confidence = db.Column(db.Integer, default=0, nullable=False)
+    entropy = db.Column(db.Integer, default=0, nullable=False)
     dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
 
     def to_dict(self):
@@ -78,7 +79,7 @@ class DataInstance(db.Model):
             "data": self.data,
             "labels": [int(num) for num in self.labels.split(',')] if self.labels and ',' in self.labels else int(self.labels) if self.labels else None,
             "manually_processed": self.manually_processed,
-            "confidence": self.confidence,
+            "entropy": self.entropy,
             "dataset_id": self.dataset_id,
         }
 

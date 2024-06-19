@@ -3,6 +3,10 @@ from models import db, Dataset, Project, DataInstance
 import pandas as pd
 from flasgger import swag_from
 import json
+from werkzeug.utils import secure_filename
+import os
+import uuid
+from S3ImageDataset import s3
 
 dataset_routes = Blueprint('dataset', __name__)
 
@@ -88,9 +92,8 @@ def return_batch(id):
     dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
     data_instances = DataInstance.query.filter(
         DataInstance.dataset_id == dataset.id,
-        DataInstance.labels == None,
         DataInstance.manually_processed == False
-    ).order_by(DataInstance.confidence.asc()).limit(20).all()
+    ).order_by(DataInstance.entropy.desc()).limit(20).all()
     data_list = [instance.to_dict() for instance in data_instances]
     return jsonify(data_list), 200
 
@@ -101,3 +104,65 @@ def get_all_datasets():
     datasets = Dataset.query.all()
     dataset_list = [dataset.to_dict() for dataset in datasets]
     return jsonify(dataset_list), 200
+
+
+@dataset_routes.route('/<int:id>/upload', methods=['POST'])
+@swag_from({
+    'tags': ['Dataset'],
+    'summary': 'Upload files to a dataset',
+    'description': 'Upload multiple files to a specified dataset and store them in an S3 bucket. The filenames will be generated as UUIDs.',
+    'parameters': [
+        {
+            'name': 'id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'ID of the dataset to which the files will be uploaded'
+        },
+        {
+            'name': 'files[]',
+            'in': 'formData',
+            'type': 'file',
+            'required': True,
+            'description': 'Files to upload',
+            'collectionFormat': 'multi'
+        }
+    ]
+})
+def upload_files(id):
+    if 'files[]' not in request.files:
+        return jsonify({"error": "No files part in the request"}), 400
+    
+    dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
+    project = Project.query.get_or_404(dataset.project_id, description="Project ID not found")
+
+    files = request.files.getlist('files[]')
+
+    UPLOAD_FOLDER = '/tmp'
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
+    for file in files:
+        if file:
+            # sanitise filename
+            original_filename = secure_filename(file.filename)
+
+            extension = os.path.splitext(original_filename)[1]
+            unique_filename = f"{uuid.uuid4().hex}{extension}" if extension else uuid.uuid4().hex
+            local_filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+            file.save(local_filepath)
+
+            # Upload to S3
+            s3_filepath = os.path.join(project.prefix, unique_filename)
+            s3.upload_file(local_filepath, project.bucket, s3_filepath)
+
+            # Save to database
+            data_instance = DataInstance(data=unique_filename, dataset_id=dataset.id)
+            db.session.add(data_instance)
+
+            # Remove file from local storage
+            os.remove(local_filepath)
+
+    db.session.commit()
+
+    return jsonify({'message': f'{len(files)} files successfully uploaded into dataset'}), 201
