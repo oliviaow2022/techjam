@@ -6,12 +6,17 @@ import torch
 
 s3 = boto3.client('s3')
 
+def download_weights_from_s3(bucket_name, key):
+    obj = s3.get_object(Bucket=bucket_name, Key=key)
+    return obj['Body'].read()
+
 class S3ImageDataset(Dataset):
-    def __init__(self, dataframe, bucket, prefix, transform=None):
+    def __init__(self, dataframe, bucket, prefix, has_labels=True, transform=None):
         self.dataframe = dataframe
         self.bucket = bucket
         self.prefix = prefix
         self.transform = transform
+        self.has_labels = has_labels
 
     def __len__(self):
         return len(self.dataframe)
@@ -30,6 +35,10 @@ class S3ImageDataset(Dataset):
         
         if self.transform:
             image = self.transform(image)
+
+        if not self.has_labels:
+            data_instance_id = self.dataframe.loc[idx, 'id']
+            return image, data_instance_id
 
         # image = torch.tensor(image)
         label = torch.tensor(label)

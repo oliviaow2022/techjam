@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import db, Model, Project, Dataset, History, Epoch
+from models import db, Model, Project, Dataset, History, Epoch, DataInstance
 from S3ImageDataset import S3ImageDataset
 from services.dataset import get_dataframe
 from torch.utils.data import random_split, DataLoader
@@ -8,7 +8,8 @@ from torch.optim import lr_scheduler
 import torch
 from services.model import train_model, compute_metrics
 from flasgger import swag_from
-import sklearn.metrics
+from io import BytesIO
+from S3ImageDataset import download_weights_from_s3
 
 model_routes = Blueprint('model', __name__)
 
@@ -109,7 +110,7 @@ def run_training(id):
     # only get datainstances with labels
     df = get_dataframe(dataset.id, return_labelled=True)
 
-    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix)
+    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=True)
 
     train_size = int(TRAIN_TEST_SPLIT * len(s3_dataset)) 
     val_size = len(s3_dataset) - train_size 
@@ -160,8 +161,21 @@ def run_training(id):
     return jsonify(history.to_dict()), 200
 
 
-@model_routes.route('/<int:id>/label', methods=['GET'])
+@model_routes.route('/<int:id>/label', methods=['POST'])
+@swag_from({
+    'tags': ['Model'],
+    'parameters': [
+        {
+            'name': 'id',
+            'in': 'path',
+            'type': 'integer',
+            'required': True,
+            'description': 'The ID of the model'
+        }
+    ],
+})
 def run_model(id):
+    print('running model...')
 
     model = Model.query.get_or_404(id, description="Model ID not found")
     project = Project.query.get_or_404(model.project_id, description="Project ID not found")
@@ -173,28 +187,39 @@ def run_model(id):
         num_ftrs = ml_model.fc.in_features
         ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
 
+    if not model.saved:
+        return jsonify({'Saved model does not exist'}), 404
+
     # load in weights
-    ml_model.load_state_dict(torch.load(model.saved))
+    model_weights = download_weights_from_s3(project.bucket, model.saved)
+    ml_model.load_state_dict(torch.load(BytesIO(model_weights)))
     ml_model.eval()
 
     # only get datainstances with no labels
     df = get_dataframe(dataset.id, return_labelled=False)
 
-    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix)
+    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=False)
     s3_dataset.transform = data_transforms['val']
 
     dataloader = DataLoader(s3_dataset, batch_size=32, shuffle=True)
 
+    instances_updated = 0
+
     with torch.no_grad():
-        for images in dataloader:
-            outputs = model(images)
+        for images, data_instance_ids in dataloader:
+            outputs = ml_model(images)
             _, predicted = torch.max(outputs, 1)
             confidence_levels = torch.nn.functional.softmax(outputs, dim=1)
-            entropy = -torch.sum(confidence_levels * torch.log2(confidence_levels))
+            entropy = -torch.sum(confidence_levels * torch.log2(confidence_levels), dim=1)
 
+            for index, instance_id in enumerate(data_instance_ids):
+                data_instance = DataInstance.query.get_or_404(instance_id.item(), description='DataInstance ID not found')
+                data_instance.entropy = entropy[index].item()
+                data_instance.labels = predicted[index].item()
+                db.session.commit()
+                instances_updated += 1
 
-
-    return 
+    return jsonify({'instances_updated': f'{instances_updated} instances updated'}), 200
 
 
 # for debugging only
