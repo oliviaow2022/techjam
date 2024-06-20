@@ -27,6 +27,7 @@ class User(db.Model):
     
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(128), nullable=False)
     name = db.Column(db.String(128), nullable=False)
     bucket = db.Column(db.String(128), nullable=True)
     prefix = db.Column(db.String(128), nullable=True)
@@ -37,7 +38,8 @@ class Project(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "user_id": self.user_id
+            "user_id": self.user_id,
+            "type": self.type
         }
 
     def __repr__(self):

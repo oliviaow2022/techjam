@@ -46,13 +46,14 @@ def create_project():
     user_id = request.json.get('user_id')
     bucket = request.json.get('bucket')
     prefix = request.json.get('prefix')
+    type = request.json.get('type')
 
-    if not (name or user_id):
-        return jsonify({"error": "Bad Request", "message": "Name and user_id are required"}), 400
+    if not (name or user_id or type):
+        return jsonify({"error": "Bad Request", "message": "Missing required fields"}), 400
 
     user = User.query.get_or_404(user_id, description="User ID not found")
 
-    project = Project(name=name, user_id=user.id)
+    project = Project(name=name, user_id=user.id, type=type)
 
     if bucket:
         project.bucket = bucket

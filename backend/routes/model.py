@@ -3,7 +3,7 @@ from models import db, Model, Project, Dataset, History, Epoch, DataInstance
 from S3ImageDataset import S3ImageDataset
 from services.dataset import get_dataframe
 from torch.utils.data import random_split, DataLoader
-from torchvision import transforms, models
+from torchvision import transforms, models, datasets
 from torch.optim import lr_scheduler
 import torch
 from services.model import train_model, compute_metrics
@@ -14,18 +14,26 @@ from S3ImageDataset import download_weights_from_s3
 model_routes = Blueprint('model', __name__)
 
 data_transforms = {
-    'train': transforms.Compose([
+    'image_train': transforms.Compose([
         transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
-    'val': transforms.Compose([
+    'image_val': transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
+    'fashion_mnist': transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,),(0.5,),)
+    ]),
+    'cifar-10': transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
 }
 
 @model_routes.route('/create', methods=['POST'])
@@ -107,17 +115,24 @@ def run_training(id):
     project = Project.query.get_or_404(model.project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
-    # only get datainstances with labels
-    df = get_dataframe(dataset.id, return_labelled=True)
+    if dataset.name == 'fashion-mnist':
+        train_dataset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data', download=True, train=True, transform=data_transforms['fashion_mnist'])
+        val_dataset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data', download=True, train=False, transform=data_transforms['fashion_mnist'])     
+    elif dataset.name == 'cifar-10':
+        train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=data_transforms['cifar-10'])
+        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=data_transforms['cifar-10'])
+    else:
+        # only get datainstances with labels
+        df = get_dataframe(dataset.id, return_labelled=True)
 
-    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=True)
+        s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=True)
 
-    train_size = int(TRAIN_TEST_SPLIT * len(s3_dataset)) 
-    val_size = len(s3_dataset) - train_size 
+        train_size = int(TRAIN_TEST_SPLIT * len(s3_dataset)) 
+        val_size = len(s3_dataset) - train_size 
 
-    train_dataset, val_dataset = random_split(s3_dataset, [train_size, val_size])
-    train_dataset.dataset.transform = data_transforms['train']
-    val_dataset.dataset.transform = data_transforms['val']
+        train_dataset, val_dataset = random_split(s3_dataset, [train_size, val_size])
+        train_dataset.dataset.transform = data_transforms['image_train']
+        val_dataset.dataset.transform = data_transforms['image_val']
 
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)

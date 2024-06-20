@@ -1,8 +1,7 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify
 from models import db, User, Project
-# import jwt
-from datetime import datetime
 from flasgger import swag_from
+from flask_jwt_extended import create_access_token
 
 user_routes = Blueprint('user', __name__)
 
@@ -95,9 +94,8 @@ def login():
     user = User.query.filter_by(username=username).first()
 
     if user and user.check_password(password):
-        # token = jwt.encode({'user_id': user.id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)}, app.config['SECRET_KEY'])
-        # return jsonify({'token': token}), 200
-        return jsonify({'message': 'Login successful'}), 200
+        access_token = create_access_token(identity=user.id)
+        return jsonify({'token': access_token}), 200
     else:
         # Invalid credentials
         return jsonify({'message': 'Login failed. Please check your username and password'}), 401

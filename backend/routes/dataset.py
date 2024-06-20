@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 import os
 import uuid
 from S3ImageDataset import s3
+from services.dataset import get_dataset_config
 
 dataset_routes = Blueprint('dataset', __name__)
 
@@ -39,6 +40,8 @@ def create_dataset():
     project_id = request.json.get('project_id')
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
+
+    num_classes, class_to_label_mapping = get_dataset_config(name, num_classes, class_to_label_mapping)
 
     if not (project_id or name or num_classes or class_to_label_mapping):
         return jsonify({"error": "Bad Request", "message": "Missing fields"}), 400
