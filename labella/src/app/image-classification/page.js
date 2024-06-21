@@ -12,7 +12,13 @@ export default function ImageClassification() {
     const models = ["resnet18", "densenet121", "alexnet", "convnext_base"]
 
     const [selectedModel, setSelectedModel] = useState('not selected');
-
+    const jwtToken = localStorage.getItem('jwt');
+    console.log("jwt:", jwtToken)
+    const config = {
+        headers: {
+            Authorization: `Bearer ${jwtToken}`
+        }
+    };
     const [formData, setFormData] = useState({
         projectName: '',
         projectType: '',
@@ -29,7 +35,7 @@ export default function ImageClassification() {
             "0": '',
             "1": ''
         }
-    });
+    }, config);
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,14 +65,14 @@ export default function ImageClassification() {
 
         if (!formData.projectName) {
             errors.projectName = 'Project Name is required';
-        } 
+        }
         if (!formData.projectType) {
             errors.projectType = 'Project Type is required';
         }
         if (!formData.model) {
             errors.model = 'Model is required';
         }
-   
+
         if (!formData.splitRatio) {
             errors.splitRatio = 'Train-test split ratio is required';
         }
@@ -148,8 +154,8 @@ export default function ImageClassification() {
                 <div className="ml-20">
                     <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">Image Classification</p>
                     <form onSubmit={handleSubmit}>
-                        <div className="mb-4">
-                            <p className="font-bold mb-4">Create a new project</p>
+                        <p className="font-bold mb-4">Create a new project</p>
+                        <div className="flex flex-col gap-4">
                             <InputBox label={"Project Name"}
                                 name="projectName"
                                 value={formData.projectName}
@@ -168,7 +174,7 @@ export default function ImageClassification() {
                             <p className="mt-4">Select Model</p>
                             <div className="grid grid-cols-4 gap-6">
                                 {models.map((model, index) => (
-                                    <div key={index} className={`flex border w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer ${selectedModel === model ? 'bg-[#FF52BF] text-black' : 'hover:bg-[#FF52BF] hover:text-black'}`}
+                                    <div key={index} className={`flex border border-white border-opacity-50 w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer ${selectedModel === model ? 'bg-[#FF52BF] text-black' : 'hover:bg-[#FF52BF] hover:text-black'}`}
                                         onClick={() => { setFormData({ ...formData, model }); setSelectedModel(model) }}>
                                         {model}
                                     </div>
@@ -218,7 +224,7 @@ export default function ImageClassification() {
                                 error={errors.datasetName}
                             />
                         </div>
-                        <div className="mb-4">
+                        <div className="flex gap-4 flex-col">
                             <InputBox label={"Number of classes"}
                                 name="numClasses"
                                 value={formData.numClasses}
@@ -237,9 +243,8 @@ export default function ImageClassification() {
                                 onChange={handleChange}
                                 error={errors.classToLabelMapping}
                             />
-                        </div>
-                        <div>
-                            <button type="submit" className="flex bg-[#FF52BF] w-32 rounded-full justify-center items-center cursor-pointer" disabled={isSubmitting}>
+
+                            <button type="submit" className="flex bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer" disabled={isSubmitting}>
                                 {isSubmitting ? 'Creating...' : 'Create Project'}
                             </button>
                         </div>

@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from config import Config
 import csv
 from models import db, User, Project, Dataset, DataInstance, Model
@@ -16,6 +17,7 @@ from flask.cli import with_appcontext
 from flask_jwt_extended import JWTManager
 
 app = Flask(__name__)
+CORS(app)
 app.register_blueprint(user_routes, url_prefix='/user')
 app.register_blueprint(project_routes, url_prefix='/project')
 app.register_blueprint(dataset_routes, url_prefix='/dataset')

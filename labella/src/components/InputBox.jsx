@@ -9,12 +9,12 @@ const InputBox = ({label, name, value, onChange, error}) => {
             <input 
                 id={name}
                 name={name}
-                type="text" 
+                type="type" 
                 value={value}
                 onChange={onChange} 
-                className='text-white p-2 border rounded-lg h-8 bg-transparent'    
+                className='text-white p-2 border border-white border-opacity-50 rounded-lg h-8 bg-transparent'    
             />
-            {error && <p className="text-red-500">{error}</p>}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
         </div>
     )
 };
