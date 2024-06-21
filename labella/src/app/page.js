@@ -14,7 +14,7 @@ export default function Home() {
           <p>Documentation</p>
         </div>
       </div>
-      <div className="flex flex-col items-center h-96 place-content-center">
+      <div className="flex flex-col items-center h-screen place-content-center">
         <p className="text-5xl font-bold mt-32"><span className="text-[#1ED2EC]">Smarter</span> Data Labeling</p>
         <p className="text-5xl font-bold mb-10">Accelerated by <span className="text-[#FFE261]">Active Learning</span></p>
         <div className="bg-[#FF52BF] w-32 h-8 place-content-center text-center rounded-full font-bold cursor-pointer hover:opacity-90 active:opacity-100">
