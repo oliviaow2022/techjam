@@ -64,7 +64,7 @@ class Dataset(db.Model):
         }
 
     def __repr__(self):
-        return f'<Dataset {self.name}>'
+        return f'<Dataset {self.to_dict()}>'
 
 
 class DataInstance(db.Model):
@@ -103,7 +103,7 @@ class Model(db.Model):
         }
 
     def __repr__(self):
-        return f'<Model {self.name}>'
+        return f'<Model {self.to_dict()}>'
     
 
 class History(db.Model):
