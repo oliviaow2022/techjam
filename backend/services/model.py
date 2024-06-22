@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from S3ImageDataset import s3
 from models import db
+from tqdm import tqdm
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
@@ -11,13 +12,14 @@ def train_epoch(model, dataloader, criterion, optimizer, device):
     total = 0
     correct = 0
     
-    for inputs, labels in dataloader:
+    progress_bar = tqdm(dataloader, desc='Training', leave=False)
+    for inputs, labels in progress_bar:
         inputs, labels = inputs.to(device), labels.to(device)
-        
         optimizer.zero_grad()
         
         outputs = model(inputs)
         loss = criterion(outputs, labels)
+
         loss.backward()
         optimizer.step()
         

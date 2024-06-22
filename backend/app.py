@@ -37,8 +37,7 @@ swagger_config = {
         'description': 'API documentation using Swagger and Flask',
         'version': '1.0'
     },
-    'host': '127.0.0.1:5001',
-    'schemes': ['http', 'https']
+    'host': '127.0.0.1:5001'
 }
 Swagger(app, template=swagger_config)
 
@@ -56,12 +55,13 @@ def seed():
     db.session.commit()
 
     ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket='dltechjam', prefix='transfer-antsbees', type="1")
-    fashion_mnist = Project(name="Fashion MNIST", user_id=user.id, type="2")
-    db.session.add_all([ants_bees, fashion_mnist])
+    fashion_mnist = Project(name="Fashion MNIST", user_id=user.id, type="1")
+    cifar10 = Project(name="Cifar-10", user_id=user.id, type="1")
+    db.session.add_all([ants_bees, fashion_mnist, cifar10])
     db.session.commit()
 
     ants_bees_ds = Dataset(name="Ants and Bees", project_id=ants_bees.id, num_classes=2, class_to_label_mapping={0: 'ants', 1: 'bees'})
-    fashion_mnist_ds = Dataset(name="fashion-mnist", project_id=fashion_mnist.id, num_classes=2, class_to_label_mapping={
+    fashion_mnist_ds = Dataset(name="fashion-mnist", project_id=fashion_mnist.id, num_classes=10, class_to_label_mapping={
             0: 'T-shirt/top',
             1: 'Trouser',
             2: 'Pullover',
@@ -73,7 +73,19 @@ def seed():
             8: 'Bag',
             9: 'Ankle Boot'
         })
-    db.session.add_all([ants_bees_ds, fashion_mnist_ds])
+    cifar10_ds = Dataset(name="cifar-10", project_id=cifar10.id, num_classes=10, class_to_label_mapping={
+            0: 'plane',
+            1: 'car',
+            2: 'bird',
+            3: 'cat',
+            4: 'deer',
+            5: 'dog',
+            6: 'frog',
+            7: 'horse',
+            8: 'ship',
+            9: 'truck'
+        })
+    db.session.add_all([ants_bees_ds, fashion_mnist_ds, cifar10_ds])
     db.session.commit()
 
     resnet18 = Model(name='resnet18', project_id=ants_bees.id)
@@ -81,7 +93,8 @@ def seed():
     alexnet = Model(name='alexnet', project_id=ants_bees.id)
     convnext_base = Model(name='convnext_base', project_id=ants_bees.id)
     resnet18_2 = Model(name='resnet18', project_id=fashion_mnist.id)
-    db.session.add_all([resnet18, densenet121, alexnet, convnext_base, resnet18_2])
+    resnet18_3 = Model(name='resnet18', project_id=cifar10.id)
+    db.session.add_all([resnet18, densenet121, alexnet, convnext_base, resnet18_2, resnet18_3])
     db.session.commit()
 
     """Seed the database from a CSV file."""
