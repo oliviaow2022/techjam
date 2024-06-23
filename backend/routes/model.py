@@ -27,8 +27,10 @@ data_transforms = {
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'fashion_mnist': transforms.Compose([
+        transforms.Grayscale(num_output_channels=3),
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize((0.5,),(0.5,),)
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'cifar-10': transforms.Compose([
         transforms.ToTensor(),
@@ -76,7 +78,7 @@ def create_model():
     'parameters': [
         {
             'in': 'path',
-            'name': 'model_id',
+            'name': 'id',
             'type': 'integer',
             'required': True,
             'description': 'ID of the model to train'
@@ -111,9 +113,14 @@ def run_training(id):
     TRAIN_TEST_SPLIT = request.json.get('train_test_split')
     BATCH_SIZE = request.json.get('batch_size')
 
+    if not (NUM_EPOCHS or TRAIN_TEST_SPLIT or BATCH_SIZE):
+        return jsonify({'Message': 'Missing required fields'}), 404
+
     model = Model.query.get_or_404(id, description="Model ID not found")
     project = Project.query.get_or_404(model.project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
+    print(dataset)
+    print(model)
 
     if dataset.name == 'fashion-mnist':
         train_dataset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data', download=True, train=True, transform=data_transforms['fashion_mnist'])
@@ -136,6 +143,10 @@ def run_training(id):
 
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+    dataiter = iter(train_dataloader)
+    images, labels = next(dataiter)
+    print(images.shape, labels.shape)
 
     if model.name == 'resnet18':
         ml_model = models.resnet18(weights='DEFAULT')
