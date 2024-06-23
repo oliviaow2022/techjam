@@ -7,7 +7,7 @@ import InputPassword from '@/components/InputPassword';
 import axios from 'axios';
 import { useRouter } from 'next/navigation'
 
-export default function Login() {
+export default function Register() {
     const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + '/user/register';
     const [formData, setFormData] = useState({
         username: '',
@@ -55,9 +55,10 @@ export default function Login() {
                     email: formData.email
                 });
                 // Handle successful submission
-                console.log(response.status)
+                console.log("res:",response.status)
                 if (response.status == 201) {
                     setAlreadyCreated(false);
+                    localStorage.setItem('jwt', response.data.token)
                     router.push("/home")
                 }
             } catch (error) {
@@ -92,7 +93,7 @@ export default function Login() {
             <form onSubmit={handleSubmit}>
                 <div className="flex flex-col items-center h-screen place-content-center">
                     <p className={`font-bold text-xl mb-4 ${alreadyCreated ? "" : "mb-8"}`}>Create an account</p>
-                    {alreadyCreated ? (<div><p className='text-red-500 text-sm'>An account with this email already exists</p></div>) : (<div></div>)}
+                    {alreadyCreated ? (<div><p className='text-red-500 text-sm'>Email/Username already exists</p></div>) : (<div></div>)}
                     <div className="border border-white border-opacity-50 flex flex-col justify-center items-center rounded p-4 gap-2">
                         <InputBox label={"Email"}
                             name="email"
@@ -117,7 +118,7 @@ export default function Login() {
                         </button>
                     </div>
                     <div className='mt-4'>
-                        <p className='text-sm'>Already have an account? &nbsp;
+                        <p className='text-sm'>Already on Labella? &nbsp;
                             <Link href="/register"><span className='text-[#ACDFEF] cursor-pointer'>Login.</span></Link>
                         </p>
                     </div>

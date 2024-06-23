@@ -50,9 +50,9 @@ export default function Login() {
                     password: formData.password
                 });
                 // Handle successful submission
-                console.log(response.status)
                 if(response.status == 200) {
                     setWrongPW(false);
+                    localStorage.setItem('jwt', response.data.token)
                     router.push("/home")
                 }
             } catch (error) {

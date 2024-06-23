@@ -13,10 +13,11 @@ export default function ImageClassification() {
 
     const [selectedModel, setSelectedModel] = useState('not selected');
     const jwtToken = localStorage.getItem('jwt');
-    console.log("jwt:", jwtToken)
+    console.log("jwt:",jwtToken)
     const config = {
         headers: {
-            Authorization: `Bearer ${jwtToken}`
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwtToken}`
         }
     };
     const [formData, setFormData] = useState({
@@ -104,8 +105,8 @@ export default function ImageClassification() {
                 const response = await axios.post(apiEndpoint, {
                     name: formData.projectName,
                     dataset_name: formData.datasetName,
-                    model_name: formData.model_name,
-                    num_classes: formData.num_classes,
+                    model_name: formData.model,
+                    num_classes: formData.numClasses,
                     project_name: formData.projectName,
                     project_type: formData.projectType,
                     class_to_label_mapping: formData.classToLabelMapping,
@@ -145,13 +146,13 @@ export default function ImageClassification() {
                 </div>
             </div>
             <div className="flex flex-row">
-                <div className="flex flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
+                <div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
                     {menuOptions.map((option, index) => (
-                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF]">{option}</p>
+                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white">{option}</p>
                     ))}
                 </div>
-                <div className="bg-white border-2 mt-32 ml-64 h-screen sticky"></div>
-                <div className="ml-20">
+                <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
+                <div className="ml-0 lg:ml-20">
                     <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">Image Classification</p>
                     <form onSubmit={handleSubmit}>
                         <p className="font-bold mb-4">Create a new project</p>
@@ -172,9 +173,9 @@ export default function ImageClassification() {
 
                         <div className="mb-4">
                             <p className="mt-4">Select Model</p>
-                            <div className="grid grid-cols-4 gap-6">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                                 {models.map((model, index) => (
-                                    <div key={index} className={`flex border border-white border-opacity-50 w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer ${selectedModel === model ? 'bg-[#FF52BF] text-black' : 'hover:bg-[#FF52BF] hover:text-black'}`}
+                                    <div key={index} className={`flex border border-white border-opacity-50 w-32 xl:w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer ${selectedModel === model ? 'bg-[#FF52BF] text-black' : 'hover:bg-[#FF52BF] hover:text-black'}`}
                                         onClick={() => { setFormData({ ...formData, model }); setSelectedModel(model) }}>
                                         {model}
                                     </div>
@@ -244,7 +245,7 @@ export default function ImageClassification() {
                                 error={errors.classToLabelMapping}
                             />
 
-                            <button type="submit" className="flex bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer" disabled={isSubmitting}>
+                            <button type="submit" className="flex bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer text-white" disabled={isSubmitting}>
                                 {isSubmitting ? 'Creating...' : 'Create Project'}
                             </button>
                         </div>
