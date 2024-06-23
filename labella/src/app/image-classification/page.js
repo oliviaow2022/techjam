@@ -35,8 +35,9 @@ export default function ImageClassification() {
         classToLabelMapping: {
             "0": '',
             "1": ''
-        }
-    }, config);
+        },
+        config: config
+    });
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,7 +114,7 @@ export default function ImageClassification() {
                     user_id: formData.userId,
                     s3_bucket: formData.bucket || '', // optional
                     s3_prefix: formData.prefix || '', // optional
-                });
+                }, formData.config);
 
                 console.log('Form submitted successfully:', response.data);
                 // Reset form or handle successful submission
@@ -122,13 +123,6 @@ export default function ImageClassification() {
             } finally {
                 setIsSubmitting(false);
             }
-
-            console.log('Form submitted successfully:', formData);
-
-            setTimeout(() => {
-                console.log('Form submitted successfully:', formData);
-                setIsSubmitting(false);
-            }, 1000);
         }
 
     };
