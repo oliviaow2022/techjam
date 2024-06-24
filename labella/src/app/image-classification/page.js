@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Image from "next/image";
 import Link from 'next/link';
 import InputBox from "@/components/InputBox";
+import JsonInput from '@/components/JSONInput';
 import axios from 'axios';
 
 export default function ImageClassification() {
@@ -13,7 +14,13 @@ export default function ImageClassification() {
 
     const [selectedModel, setSelectedModel] = useState('not selected');
     const jwtToken = localStorage.getItem('jwt');
-    console.log("jwt:",jwtToken)
+
+    const [parsedJson, setParsedJson] = useState(null);
+    const handleJsonChange = (parsedJson) => {
+        setParsedJson(parsedJson);
+    };
+    const [projectCreated, setProjectCreated] = useState(false);
+
     const config = {
         headers: {
             'Content-Type': 'application/json',
@@ -32,10 +39,7 @@ export default function ImageClassification() {
         numClasses: '',
         s3_bucket: "my-s3-bucket",
         s3_prefix: "my-prefix/",
-        classToLabelMapping: {
-            "0": '',
-            "1": ''
-        },
+        classToLabelMapping: '',
         config: config
     });
 
@@ -45,21 +49,10 @@ export default function ImageClassification() {
     const handleChange = (e) => {
         const { name, value } = e.target;
 
-        if (name.startsWith("class")) {
-            const classIndex = name.slice(-1); // Extract the class index from the input name
-            setFormData({
-                ...formData,
-                classToLabelMapping: {
-                    ...formData.classToLabelMapping,
-                    [classIndex]: value
-                }
-            });
-        } else {
-            setFormData({
-                ...formData,
-                [name]: value
-            });
-        }
+        setFormData({
+            ...formData,
+            [name]: value
+        });
     };
 
     const validate = () => {
@@ -87,11 +80,6 @@ export default function ImageClassification() {
         if (!formData.numClasses) {
             errors.numClasses = 'Number of classes is required';
         }
-        if (!formData.classToLabelMapping) {
-            errors.classToLabelMapping = 'Naming of classes is required';
-        }
-
-
         return errors;
     };
 
@@ -99,7 +87,6 @@ export default function ImageClassification() {
         e.preventDefault();
         const validationErrors = validate();
         setErrors(validationErrors);
-
         if (Object.keys(validationErrors).length === 0) {
             setIsSubmitting(true);
             try {
@@ -110,13 +97,14 @@ export default function ImageClassification() {
                     num_classes: formData.numClasses,
                     project_name: formData.projectName,
                     project_type: formData.projectType,
-                    class_to_label_mapping: formData.classToLabelMapping,
+                    class_to_label_mapping: parsedJson,
                     user_id: formData.userId,
                     s3_bucket: formData.bucket || '', // optional
                     s3_prefix: formData.prefix || '', // optional
                 }, formData.config);
 
                 console.log('Form submitted successfully:', response.data);
+                setProjectCreated(true);
                 // Reset form or handle successful submission
             } catch (error) {
                 console.error('Error submitting form:', error);
@@ -142,14 +130,15 @@ export default function ImageClassification() {
             <div className="flex flex-row">
                 <div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
                     {menuOptions.map((option, index) => (
-                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white">{option}</p>
+                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white"><a href={`#${option}`}>{option}</a></p>
                     ))}
                 </div>
                 <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
                 <div className="ml-0 lg:ml-20">
-                    <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">Image Classification</p>
+                    <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40" id="Project Details">Image Classification</p>
                     <form onSubmit={handleSubmit}>
                         <p className="font-bold mb-4">Create a new project</p>
+                        <div id="Model"></div>
                         <div className="flex flex-col gap-4">
                             <InputBox label={"Project Name"}
                                 name="projectName"
@@ -175,7 +164,7 @@ export default function ImageClassification() {
                                     </div>
                                 ))}
                             </div>
-                            {errors.model && <p className="text-red-500">{errors.model}</p>}
+                            {errors.model && <p className="text-red-500 text-sm">{errors.model}</p>}
                         </div>
 
                         <div className="mb-4">
@@ -206,7 +195,7 @@ export default function ImageClassification() {
                         </div>
 
 
-                        <div className="mb-4">
+                        <div className="mb-4" id="Dataset">
                             {/* <p className="">Choose Dataset</p>
                             <div className="flex border w-64 rounded-lg pl-4 py-1 items-center">
                                 <img src="/upload.png" alt="upload icon" className="h-4 mr-2"></img>
@@ -226,22 +215,15 @@ export default function ImageClassification() {
                                 onChange={handleChange}
                                 error={errors.numClasses}
                             />
-                            <InputBox label={"Name of class 0"}
-                                name="class0"
-                                value={formData.classToLabelMapping[0]}
-                                onChange={handleChange}
-                                error={errors.classToLabelMapping}
-                            />
-                            <InputBox label={"Name of class 1"}
-                                name="class1"
-                                value={formData.classToLabelMapping[1]}
-                                onChange={handleChange}
-                                error={errors.classToLabelMapping}
+                            <JsonInput label={"Class to Label Mapping (JSON)"}
+                                name="classToLabelMapping"
+                                onJsonChange={handleJsonChange}
                             />
 
                             <button type="submit" className="flex bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer text-white" disabled={isSubmitting}>
                                 {isSubmitting ? 'Creating...' : 'Create Project'}
                             </button>
+                            {projectCreated ? (<div>Success!</div>):(<div></div>)}
                         </div>
 
                     </form>
