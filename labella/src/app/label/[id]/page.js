@@ -4,38 +4,13 @@ import Image from "next/image";
 import Link from 'next/link';
 import LabelButton from '@/components/LabelButton';
 import ImageSlider from '@/components/ImageSlider';
+import SideNav from '@/components/SideNav';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
 export default function Label({ params }) {
     const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.id}/batch`;
     const jwtToken = localStorage.getItem('jwt');
-    const menuOptions = [{
-        "id": 0,
-        "name": "Project Details",
-        "link": "/image-classification"
-    },
-    {
-        "id": 1,
-        "name": "Model",
-        "link": "/image-classification"
-    },
-    {
-        "id": 2,
-        "name": "Dataset",
-        "link": "/image-classification"
-    },
-    {
-        "id": 3,
-        "name": "Label",
-        "link": `/label/${params}`
-    },
-    {
-        "id": 5,
-        "name": "Performance and Statistics",
-        "link": "/statistics"
-    }]
-
 
     const config = {
         headers: {
@@ -43,21 +18,6 @@ export default function Label({ params }) {
             'Authorization': `Bearer ${jwtToken}`
         }
     };
-    const [formData, setFormData] = useState({
-        projectName: '',
-        projectType: '',
-        model: '',
-        epochs: '',
-        splitRatio: '',
-        batchSize: '',
-        userId: 1,
-        datasetName: '',
-        numClasses: '',
-        s3_bucket: "my-s3-bucket",
-        s3_prefix: "my-prefix/",
-        classToLabelMapping: '',
-        config: config
-    });
 
     const [images, setImages] = useState([]);
     const [error, setError] = useState(null);
@@ -65,7 +25,6 @@ export default function Label({ params }) {
     const [selectedImage, setSelectedImage] = useState('');
 
     useEffect(() => {
-        // Define the function to fetch data
         const fetchData = async () => {
             try {
                 const response = await axios.get(apiEndpoint);
@@ -77,7 +36,7 @@ export default function Label({ params }) {
             }
         };
         fetchData();
-    }, [apiEndpoint]); // 
+    }, [apiEndpoint]); 
 
     useEffect(() => {
         if (images.length > 0) {
@@ -109,11 +68,7 @@ export default function Label({ params }) {
                 </div>
             </div>
             <div className="flex flex-row">
-                <div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
-                    {menuOptions.map((option, index) => (
-                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white"><a href={`${option.link}#${option.name}`}>{option.name}</a></p>
-                    ))}
-                </div>
+                <SideNav params={params.id}/>
                 <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
                 <div className="ml-0 lg:ml-20">
                     <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">Image Classification</p>

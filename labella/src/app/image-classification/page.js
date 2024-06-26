@@ -5,6 +5,7 @@ import Link from 'next/link';
 import InputBox from "@/components/InputBox";
 import JsonInput from '@/components/JSONInput';
 import RadioButton from '@/components/RadioButton';
+import SideNav from '@/components/SideNav';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
@@ -12,31 +13,6 @@ export default function ImageClassification() {
     const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + '/create';
     const jwtToken = localStorage.getItem('jwt');
 
-    const menuOptions = [{
-        "id": 0,
-        "name": "Project Details",
-        "link": "/image-classification"
-    },
-    {
-        "id": 1,
-        "name": "Model",
-        "link": "/image-classification"
-    },
-    {
-        "id": 2,
-        "name": "Dataset",
-        "link": "/image-classification"
-    },
-    {
-        "id": 3,
-        "name": "Label",
-        "link": "/label/1"
-    },
-    {
-        "id": 5,
-        "name": "Performance and Statistics",
-        "link": "/statistics"
-    }]
     const models = ["resnet18", "densenet121", "alexnet", "convnext_base"]
     const [selectedModel, setSelectedModel] = useState('not selected');
 
@@ -53,7 +29,6 @@ export default function ImageClassification() {
     const [selectedLabelOption, setSelectedLabelOption] = useState('Single Label Classification');
     const handleLabelOptionChange = (e) => {
         setSelectedLabelOption(e.target.value);
-        console.log(selectedLabelOption)
     }
 
     const [projectCreated, setProjectCreated] = useState(false);
@@ -144,7 +119,7 @@ export default function ImageClassification() {
 
                 console.log('Form submitted successfully:', response.data);
                 setProjectCreated(true);
-                router.push("/label");
+                router.push(menuOptions.find(item => item.name == 'Label').link);
                 // Reset form or handle successful submission
             } catch (error) {
                 console.error('Error submitting form:', error);
@@ -168,11 +143,7 @@ export default function ImageClassification() {
                 </div>
             </div>
             <div className="flex flex-row">
-                <div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
-                    {menuOptions.map((option, index) => (
-                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white"><a href={`${option.link}#${option.name}`}>{option.name}</a></p>
-                    ))}
-                </div>
+                <SideNav params={1}/>
                 <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
                 <div className="ml-0 lg:ml-20">
                     <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40" id="Project Details">Image Classification</p>
@@ -247,11 +218,7 @@ export default function ImageClassification() {
                                         value={formData.datasetName}
                                         onChange={handleChange}
                                         error={errors.datasetName} />
-                                    <p className='mt-4'>Upload files</p>
-                                    <form action="/action_page.php">
-                                        <input type="file" id="myFile" name="filename" />
-                                    </form>
-
+                                    
                                 </div>) :
                                 (<div><InputBox label={"Name of dataset"}
                                     name="datasetName"
