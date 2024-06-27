@@ -1,23 +1,18 @@
 export default function SideNav({params}){
     const menuOptions = [{
         "id": 0,
-        "name": "Project Details",
-        "link": "/image-classification"
-    },
-    {
-        "id": 1,
-        "name": "Model",
-        "link": "/image-classification"
-    },
-    {
-        "id": 2,
-        "name": "Dataset",
+        "name": "Create Project",
         "link": "/image-classification"
     },
     {
         "id": 3,
         "name": "Label",
         "link": `/label/${params}`
+    },
+    {
+        "id": 4,
+        "name": "Train Model",
+        "link": `/train-model`
     },
     {
         "id": 5,
