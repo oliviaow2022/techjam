@@ -10,6 +10,7 @@ export default function ObjectDetection() {
     const image_path =
       "https://miro.medium.com/v2/resize:fit:1400/1*v0Bm-HQxWtpbQ0Yq463uqw.jpeg";
     const [rectangles, setRectangles] = useState([]);
+    const [labelCounts, setLabelCounts] = useState({});
     const [mouseDown, setMouseDown] = useState(false);
     const [currentRect, setCurrentRect] = useState(null);
     const [clickedArea, setClickedArea] = useState({ index: -1, pos: "o" });
@@ -109,6 +110,13 @@ export default function ObjectDetection() {
           );
         }
       };
+
+      const counts = rectangles.reduce((acc, rect) => {
+        const label = rect.label || "Unlabeled";
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
+      setLabelCounts(counts);
     }, [rectangles, currentRect]);
 
     const drawRectangle = (context, x1, y1, x2, y2, color, label = "") => {
@@ -202,8 +210,11 @@ export default function ObjectDetection() {
       });
 
       if (currentArea.index === -1) {
-        setLabel('');
-      } else if (currentArea.index !== -1 && rectangles[currentArea.index].label) {
+        setLabel("");
+      } else if (
+        currentArea.index !== -1 &&
+        rectangles[currentArea.index].label
+      ) {
         setLabel(rectangles[currentArea.index].label);
       }
     };
@@ -294,10 +305,10 @@ export default function ObjectDetection() {
           const selectedBox = { ...newRectangles[clickedArea.index] };
 
           if (selectedBox.x1 > selectedBox.x2) {
-            selectedBox.x1, selectedBox.x2 = selectedBox.x2, selectedBox.x1;
+            selectedBox.x1, (selectedBox.x2 = selectedBox.x2), selectedBox.x1;
           }
           if (selectedBox.y1 > selectedBox.y2) {
-            selectedBox.y1, selectedBox.y2 = selectedBox.y2, selectedBox.y1;
+            selectedBox.y1, (selectedBox.y2 = selectedBox.y2), selectedBox.y1;
           }
 
           newRectangles[clickedArea.index] = selectedBox;
@@ -334,23 +345,36 @@ export default function ObjectDetection() {
 
     return (
       <main>
-        <canvas
-          ref={canvasRef}
-          width={1000}
-          height={500}
-          className="border border-black"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseOut={handleMouseUp}
-        />
-        <input
-          className="text-black drop-shadow"
-          type="text"
-          value={label}
-          onChange={handleLabelChange}
-          placeholder="Enter label"
-        />
+        <div className="flex flex-row">
+          <div className="bg-[#3B3840] drop-shadow absolute top-5 left-5 rounded-lg p-4">
+            <input
+              className="bg-[#3B3840] border-b border-b-[#3FEABF] mb-5"
+              type="text"
+              value={label}
+              onChange={handleLabelChange}
+              placeholder="Enter label"
+            />
+            {Object.entries(labelCounts).map(([label, count]) => (
+              <div key={label} className="flex justify-between">
+                <span>{label}</span>
+                <span>{count}</span>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
+          <div className="relative">
+            <canvas
+              ref={canvasRef}
+              width={1000}
+              height={500}
+              className="border border-black"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseOut={handleMouseUp}
+            />
+          </div>
+        </div>
       </main>
     );
   }

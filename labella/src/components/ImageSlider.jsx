@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Arrow from './Arrow';
-const ImageSlider = ({ images, bucketname, bucketprefix, handleImageChange }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const ImageSlider = ({ images, bucketname, bucketprefix, handleImageChange, currentIndex, setCurrentIndex }) => {
 
   const handlePrev = () => {
     const newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;

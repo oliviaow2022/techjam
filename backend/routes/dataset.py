@@ -108,6 +108,24 @@ def get_all_datasets():
     dataset_list = [dataset.to_dict() for dataset in datasets]
     return jsonify(dataset_list), 200
 
+@swag_from({
+    'tags': ['Dataset'],
+    'summary': 'Get dataset info',
+    'parameters': [
+        {
+            'name': 'id',
+            'in': 'path',
+            'required': True,
+            'description': 'ID of the dataset to retrieve',
+            'schema': {'type': 'integer'}
+        }
+    ]
+})
+@dataset_routes.route('/<int:id>', methods=['GET'])
+def get_dataset(id):
+    dataset = Dataset.query.get_or_404(id)
+    return jsonify(dataset.to_dict()), 200
+
 
 @dataset_routes.route('/<int:id>/upload', methods=['POST'])
 @swag_from({

@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import Image from "next/image";
-import Link from 'next/link';
+import Navbar from '@/components/NavBar';
 import InputBox from "@/components/InputBox";
 import JsonInput from '@/components/JSONInput';
 import RadioButton from '@/components/RadioButton';
@@ -43,9 +42,6 @@ export default function ImageClassification() {
         projectName: '',
         projectType: '',
         model: '',
-        epochs: '',
-        splitRatio: '',
-        batchSize: '',
         userId: 1,
         datasetName: '',
         numClasses: '',
@@ -78,13 +74,6 @@ export default function ImageClassification() {
         }
         if (!formData.model) {
             errors.model = 'Model is required';
-        }
-
-        if (!formData.splitRatio) {
-            errors.splitRatio = 'Train-test split ratio is required';
-        }
-        if (!formData.batchSize) {
-            errors.batchSize = 'Batch size is required';
         }
         if (!formData.datasetName) {
             errors.datasetName = 'Dataset name is required';
@@ -132,16 +121,7 @@ export default function ImageClassification() {
 
     return (
         <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
-            <div className="flex flex-row fixed top-0 h-24 w-10/12 2xl:w-full z-20 bg-[#19151E] items-end">
-                <div className="z-10 max-w-5xl w-full justify-between text-sm lg:flex">
-                    <Link href="/"><p className="text-xl font-bold">Labella</p></Link>
-                </div>
-                <div className="flex justify-around w-96">
-                    <p className="mx-4">Platform</p>
-                    <p className="mr-2">Datasets</p>
-                    <p>Documentation</p>
-                </div>
-            </div>
+            <Navbar />
             <div className="flex flex-row">
                 <SideNav params={1}/>
                 <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
@@ -178,33 +158,7 @@ export default function ImageClassification() {
                             </div>
                             {errors.model && <p className="text-red-500 text-sm">{errors.model}</p>}
                         </div>
-
-                        <div className="mb-4">
-                            <InputBox label={"Number of training epochs"}
-                                name="epochs"
-                                value={formData.epochs}
-                                onChange={handleChange}
-                                error={errors.epochs}
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <InputBox label={"Train-test split ratio"}
-                                name="splitRatio"
-                                value={formData.splitRatio}
-                                onChange={handleChange}
-                                error={errors.splitRatio}
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <InputBox label={"Batch size"}
-                                name="batchSize"
-                                value={formData.batchSize}
-                                onChange={handleChange}
-                                error={errors.batchSize}
-                            />
-                        </div>
+                     
                         <div className="mb-4" id="Dataset">
                             <p className="font-bold mt-12 mb-2">Dataset</p>
                             <div className='flex gap-4 mb-4'>

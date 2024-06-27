@@ -7,6 +7,10 @@ activate virtual environment
 ```
 . .venv/bin/activate
 ```
+install dependencies
+```
+pip install -r requirements.txt
+```
 installed dependencies
 ```
 pip install flask
@@ -16,6 +20,7 @@ pip install pandas
 pip install scikit-learn
 pip install tqdm
 pip install flask-jwt-extended
+pip install Flask-Cors
 ```
 
 ### Running
