@@ -7,7 +7,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 
 export default function Home() {
-  const userId = 1;
+  const userId = localStorage.getItem('user_id')
+
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/user/${userId}/projects`;
   const [userProjects, setUserProjects] = useState([]);

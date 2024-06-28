@@ -52,6 +52,7 @@ export default function Login() {
                 // Handle successful submission
                 if(response.status == 200) {
                     setWrongPW(false);
+                    localStorage.setItem('user_id', response.data.user_id)
                     localStorage.setItem('jwt', response.data.token)
                     router.push("/home")
                 }

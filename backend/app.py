@@ -3,6 +3,10 @@ from flask_cors import CORS
 from config import Config
 import csv
 from models import db, User, Project, Dataset, DataInstance, Model
+import click
+from flasgger import Swagger
+from flask.cli import with_appcontext
+from flask_jwt_extended import JWTManager
 from routes.user import user_routes
 from routes.project import project_routes
 from routes.dataset import dataset_routes
@@ -11,10 +15,6 @@ from routes.model import model_routes
 from routes.history import history_routes
 from routes.epoch import epoch_routes
 from routes.general import general_routes
-import click
-from flasgger import Swagger
-from flask.cli import with_appcontext
-from flask_jwt_extended import JWTManager
 
 app = Flask(__name__)
 CORS(app)

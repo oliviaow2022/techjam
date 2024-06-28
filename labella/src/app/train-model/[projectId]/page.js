@@ -5,30 +5,39 @@ import InputBox from "@/components/InputBox";
 import SideNav from "@/components/SideNav";
 import Navbar from "@/components/NavBar";
 import axios from "axios";
+import { toast } from 'react-hot-toast'
 
-// user shld select model from db
-const modelId = 4;
+const models = ["resnet18", "densenet121", "alexnet", "convnext_base"];
 
-export default function TrainModelButton() {
-
+export default function TrainModelButton({ params }) {
   const [formData, setFormData] = useState({
     batch_size: 128,
     num_epochs: 3,
     train_test_split: 0.8,
+    model_name: "",
   });
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrors(validate());
+
+    let validationErrors = validate()
+    setErrors(validationErrors);
+
     if (Object.keys(validationErrors).length === 0) {
       setIsSubmitting(true);
       try {
         let apiEndpoint =
-          process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/train`;
+          process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${params.projectId}/train`;
         const response = await axios.post(apiEndpoint, formData);
-        console.log(response);
+        
+        console.log(response)
+
+        if (response.status === 200) {
+          toast.success("Job created");
+        }
       } catch (err) {
         console.log(err);
       } finally {
@@ -58,6 +67,11 @@ export default function TrainModelButton() {
     if (!formData.splitRatio) {
       errors.splitRatio = "Train test split ratio is required";
     }
+    if (!formData.model_name) {
+      errors.model = "Model is required";
+    }
+
+    return errors;
   };
 
   return (
@@ -74,6 +88,27 @@ export default function TrainModelButton() {
             Train Model
           </p>
           <form>
+            <p className="mt-2">Select Model Architecture</p>
+            <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-6">
+              {models.map((model, index) => (
+                <div
+                  key={index}
+                  className={`flex border border-white border-opacity-50 w-32 xl:w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer my-1 ${
+                    formData.model_name === model
+                      ? "bg-[#FF52BF] text-black"
+                      : "hover:bg-[#FF52BF] hover:text-black"
+                  }`}
+                  onClick={() => {
+                    setFormData({ ...formData, model_name: model });
+                  }}
+                >
+                  {model}
+                </div>
+              ))}
+              {errors.model && (
+                <p className="text-red-500 text-sm">{errors.model}</p>
+              )}
+            </div>
             <div className="mb-4">
               <InputBox
                 label={"Batch size"}

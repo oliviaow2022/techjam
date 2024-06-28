@@ -1,42 +1,10 @@
 from flask import Blueprint, request, jsonify
-from models import db, Model, Project, Dataset, History, Epoch, DataInstance
-from S3ImageDataset import S3ImageDataset
-from services.dataset import get_dataframe
-from torch.utils.data import random_split, DataLoader
-from torchvision import transforms, models, datasets
-from torch.optim import lr_scheduler
-import torch
-from services.model import train_model, compute_metrics
+from models import db, Model, Project, Dataset
+from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
-from io import BytesIO
-from S3ImageDataset import download_weights_from_s3
+import threading
 
 model_routes = Blueprint('model', __name__)
-
-data_transforms = {
-    'image_train': transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ]),
-    'image_val': transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ]),
-    'fashion_mnist': transforms.Compose([
-        transforms.Grayscale(num_output_channels=3),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ]),
-    'cifar-10': transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-}
 
 @model_routes.route('/create', methods=['POST'])
 @swag_from({
@@ -71,17 +39,16 @@ def create_model():
 
     return jsonify(model.to_dict()), 201
 
-
-@model_routes.route('/<int:id>/train', methods=['POST'])
+@model_routes.route('/<int:project_id>/train', methods=['POST'])
 @swag_from({
     'tags': ['Model'],
     'parameters': [
         {
             'in': 'path',
-            'name': 'id',
+            'name': 'project_id',
             'type': 'integer',
             'required': True,
-            'description': 'ID of the model to train'
+            'description': 'Project ID'
         },
         {
             'in': 'body',
@@ -100,91 +67,49 @@ def create_model():
                     'batch_size': {
                         'type': 'integer',
                         'description': 'Batch size for training'
+                    },
+                    'model_name': {
+                        'type': 'string',
+                        'description': 'Model Architecture e.g. resnet18'
                     }
                 }
             }
         }
     ]
 })
-def run_training(id):
+def new_training_job(project_id):
     print('running training...')
 
-    NUM_EPOCHS = request.json.get('num_epochs')
-    TRAIN_TEST_SPLIT = request.json.get('train_test_split')
-    BATCH_SIZE = request.json.get('batch_size')
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
 
-    if not (NUM_EPOCHS or TRAIN_TEST_SPLIT or BATCH_SIZE):
+    model_name = request.json.get('model_name')
+    num_epochs = request.json.get('num_epochs')
+    train_test_split = request.json.get('train_test_split')
+    batch_size = request.json.get('batch_size')
+
+    if not (model_name or num_epochs or train_test_split or batch_size):
         return jsonify({'Message': 'Missing required fields'}), 404
 
-    model = Model.query.get_or_404(id, description="Model ID not found")
-    project = Project.query.get_or_404(model.project_id, description="Project ID not found")
+    # check if model with the same architecture already exists
+    model = Model.query.filter_by(name=model_name, project_id=project.id).first()
+    if not model:
+        model = Model(name=model_name, project_id=project_id)
+        db.session.add(model)
+        db.session.commit()
+
     dataset = Dataset.query.filter_by(project_id=project.id).first()
+
+    print(project)
     print(dataset)
     print(model)
 
-    if dataset.name == 'fashion-mnist':
-        train_dataset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data', download=True, train=True, transform=data_transforms['fashion_mnist'])
-        val_dataset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data', download=True, train=False, transform=data_transforms['fashion_mnist'])     
-    elif dataset.name == 'cifar-10':
-        train_dataset = datasets.CIFAR10(root='./data', train=True, download=True, transform=data_transforms['cifar-10'])
-        val_dataset = datasets.CIFAR10(root='./data', train=False, download=True, transform=data_transforms['cifar-10'])
-    else:
-        # only get datainstances with labels
-        df = get_dataframe(dataset.id, return_labelled=True)
+    from app import app
+    app_context = app.app_context()
 
-        s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=True)
+    training_thread = threading.Thread(target=run_training, args=(app_context, project, dataset, model, num_epochs, train_test_split, batch_size))
+    training_thread.start()
 
-        train_size = int(TRAIN_TEST_SPLIT * len(s3_dataset)) 
-        val_size = len(s3_dataset) - train_size 
-
-        train_dataset, val_dataset = random_split(s3_dataset, [train_size, val_size])
-        train_dataset.dataset.transform = data_transforms['image_train']
-        val_dataset.dataset.transform = data_transforms['image_val']
-
-    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
-
-    dataiter = iter(train_dataloader)
-    images, labels = next(dataiter)
-    print(images.shape, labels.shape)
-
-    if model.name == 'resnet18':
-        ml_model = models.resnet18(weights='DEFAULT')
-        num_ftrs = ml_model.fc.in_features
-        ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
-    elif model.name == 'densenet121':
-        ml_model = models.densenet121(weights='DEFAULT')
-        num_ftrs = ml_model.classifier.in_features
-        ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
-    elif model.name == 'alexnet':
-        ml_model = models.alexnet(weights='DEFAULT')
-        num_ftrs = ml_model.classifier[6].in_features
-        ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
-    elif model.name == 'convnext_base':
-        ml_model = models.convnext_base(weights='DEFAULT')
-        num_ftrs = ml_model.classifier[2].in_features
-        ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-
-    ml_model, model_history = train_model(ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
-
-    accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
-
-    history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model.id)
-
-    db.session.add(history)
-    db.session.commit()
-
-    for i in range(len(model_history)):
-        epoch = Epoch(epoch=i, train_acc=model_history[i][0], val_acc=model_history[i][1], train_loss=model_history[i][2], val_loss=model_history[i][3], model_id=model.id, history_id=history.id)
-        db.session.add(epoch)
-    db.session.commit()
-
-    return jsonify(history.to_dict()), 200
+    return jsonify({'message': 'Training started'}), 200
 
 
 @model_routes.route('/<int:id>/label', methods=['POST'])
@@ -207,45 +132,14 @@ def run_model(id):
     project = Project.query.get_or_404(model.project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
-    # initialise model
-    if model.name == 'resnet18':
-        ml_model = models.resnet18(weights='DEFAULT')
-        num_ftrs = ml_model.fc.in_features
-        ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
-
+    # check that model has been trained
     if not model.saved:
         return jsonify({'Saved model does not exist'}), 404
 
-    # load in weights
-    model_weights = download_weights_from_s3(project.bucket, model.saved)
-    ml_model.load_state_dict(torch.load(BytesIO(model_weights)))
-    ml_model.eval()
+    training_thread = threading.Thread(target=run_labelling_using_model, args=(app_context, project, dataset, model))
+    training_thread.start()
 
-    # only get datainstances with no labels
-    df = get_dataframe(dataset.id, return_labelled=False)
-
-    s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=False)
-    s3_dataset.transform = data_transforms['val']
-
-    dataloader = DataLoader(s3_dataset, batch_size=32, shuffle=True)
-
-    instances_updated = 0
-
-    with torch.no_grad():
-        for images, data_instance_ids in dataloader:
-            outputs = ml_model(images)
-            _, predicted = torch.max(outputs, 1)
-            confidence_levels = torch.nn.functional.softmax(outputs, dim=1)
-            entropy = -torch.sum(confidence_levels * torch.log2(confidence_levels), dim=1)
-
-            for index, instance_id in enumerate(data_instance_ids):
-                data_instance = DataInstance.query.get_or_404(instance_id.item(), description='DataInstance ID not found')
-                data_instance.entropy = entropy[index].item()
-                data_instance.labels = predicted[index].item()
-                db.session.commit()
-                instances_updated += 1
-
-    return jsonify({'instances_updated': f'{instances_updated} instances updated'}), 200
+    return jsonify({'message': 'Job started'}), 200
 
 
 # for debugging only

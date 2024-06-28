@@ -10,7 +10,7 @@ general_routes = Blueprint('general', __name__)
 @general_routes.route('/create', methods=['POST'])
 @jwt_required()
 @swag_from({
-    'description': 'Create a project, dataset, and model in one API call.',
+    'summary': 'Create a project and dataset in one API call',
     'security': [{'Bearer': []}],
     'parameters': [
         {
@@ -39,14 +39,13 @@ general_routes = Blueprint('general', __name__)
                         'description': 'Mapping of class indices to labels',
                         'example': {0: 'class_a', 1: 'class_b'}
                     },
-                    'model_name': {'type': 'string', 'description': 'Name of the model', 'example': 'resnet18'}
                 },
-                'required': ['project_name', 'user_id', 'dataset_name', 'num_classes', 'class_to_label_mapping', 'model_name']
+                'required': ['project_name', 'user_id', 'dataset_name', 'num_classes', 'class_to_label_mapping']
             }
         }
     ]
 })
-def create_project_dataset_model():
+def create_project_dataset():
     project_name = request.json.get('project_name')
     project_type = request.json.get('project_type')
     user_id = get_jwt_identity()
@@ -55,7 +54,6 @@ def create_project_dataset_model():
     dataset_name = request.json.get('dataset_name')
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
-    model_name = request.json.get('model_name')
 
     num_classes, class_to_label_mapping = get_dataset_config(project_name, num_classes, class_to_label_mapping)
 
@@ -72,12 +70,7 @@ def create_project_dataset_model():
     db.session.add(dataset)
     db.session.commit()
 
-    model = Model(name=model_name, project_id=project.id)
-    db.session.add(model)
-    db.session.commit()
-
     return jsonify({
         'project': project.to_dict(), 
-        'dataset': dataset.to_dict(), 
-        'model': model.to_dict()}
-    ), 201
+        'dataset': dataset.to_dict()
+    }), 201

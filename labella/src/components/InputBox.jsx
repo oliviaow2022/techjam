@@ -5,7 +5,7 @@ const InputBox = ({label, name, value, onChange, error}) => {
 
     return(
         <div>
-            <label htmlFor="input-box" className='block text-white'>{label}</label>
+            <label htmlFor="input-box" className='block text-white my-1'>{label}</label>
             <input 
                 id={name}
                 name={name}

@@ -12,7 +12,7 @@ export default function SideNav({params}){
     {
         "id": 4,
         "name": "Train Model",
-        "link": `/train-model`
+        "link": `/train-model/${params}`
     },
     {
         "id": 5,
@@ -21,7 +21,7 @@ export default function SideNav({params}){
     }]
     return(<div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
         {menuOptions.map((option, index) => (
-            <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white"><a href={`${option.link}#${option.name}`}>{option.name}</a></p>
+            <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white"><a href={option.link}>{option.name}</a></p>
         ))}
     </div>)
 }

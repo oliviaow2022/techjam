@@ -12,9 +12,6 @@ export default function ImageClassification() {
     const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + '/create';
     const jwtToken = localStorage.getItem('jwt');
 
-    const models = ["resnet18", "densenet121", "alexnet", "convnext_base"]
-    const [selectedModel, setSelectedModel] = useState('not selected');
-
     const [parsedJson, setParsedJson] = useState(null);
     const handleJsonChange = (parsedJson) => {
         setParsedJson(parsedJson);
@@ -40,8 +37,7 @@ export default function ImageClassification() {
     };
     const [formData, setFormData] = useState({
         projectName: '',
-        projectType: '',
-        model: '',
+        projectType: 'image-classification',
         userId: 1,
         datasetName: '',
         numClasses: '',
@@ -69,12 +65,6 @@ export default function ImageClassification() {
         if (!formData.projectName) {
             errors.projectName = 'Project Name is required';
         }
-        if (!formData.projectType) {
-            errors.projectType = 'Project Type is required';
-        }
-        if (!formData.model) {
-            errors.model = 'Model is required';
-        }
         if (!formData.datasetName) {
             errors.datasetName = 'Dataset name is required';
         }
@@ -96,7 +86,6 @@ export default function ImageClassification() {
                 const response = await axios.post(apiEndpoint, {
                     name: formData.projectName,
                     dataset_name: formData.datasetName,
-                    model_name: formData.model,
                     num_classes: formData.numClasses,
                     project_name: formData.projectName,
                     project_type: formData.projectType,
@@ -108,7 +97,7 @@ export default function ImageClassification() {
 
                 console.log('Form submitted successfully:', response.data);
                 setProjectCreated(true);
-                router.push(menuOptions.find(item => item.name == 'Label').link);
+                router.push(`/label/${response.data.project.id}`);
                 // Reset form or handle successful submission
             } catch (error) {
                 console.error('Error submitting form:', error);
@@ -137,26 +126,6 @@ export default function ImageClassification() {
                                 onChange={handleChange}
                                 error={errors.projectName}
                             />
-                            <InputBox label={"Project Type"}
-                                name="projectType"
-                                value={formData.projectType}
-                                onChange={handleChange}
-                                error={errors.projectType}
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <p className="font-bold mt-12">Model</p>
-                            <p className="mt-2">Select Model</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                                {models.map((model, index) => (
-                                    <div key={index} className={`flex border border-white border-opacity-50 w-32 xl:w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer ${selectedModel === model ? 'bg-[#FF52BF] text-black' : 'hover:bg-[#FF52BF] hover:text-black'}`}
-                                        onClick={() => { setFormData({ ...formData, model }); setSelectedModel(model) }}>
-                                        {model}
-                                    </div>
-                                ))}
-                            </div>
-                            {errors.model && <p className="text-red-500 text-sm">{errors.model}</p>}
                         </div>
                      
                         <div className="mb-4" id="Dataset">
