@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -73,7 +74,7 @@ class DataInstance(db.Model):
     labels = db.Column(db.String(256), nullable=True) # list of labels separated by commas
     manually_processed = db.Column(db.Boolean, default=False, nullable=False)
     entropy = db.Column(db.Integer, default=0, nullable=False)
-    dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
+    dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=True)
 
     def to_dict(self):
         return {
@@ -114,6 +115,7 @@ class History(db.Model):
     f1 = db.Column(db.Float, nullable=False)
     auc = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
@@ -123,6 +125,7 @@ class History(db.Model):
             "recall": self.recall,
             "f1": self.f1,
             "auc": self.auc,
+            "created_at": self.created_at
         }
     
     

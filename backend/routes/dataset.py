@@ -65,7 +65,7 @@ def create_dataset():
             'type': 'integer',
             'required': True,
             'description': 'Dataset ID'
-        },
+        }
     ]
 })
 @dataset_routes.route('/<int:id>/df', methods=['GET'])
@@ -77,26 +77,48 @@ def return_dataframe(id):
     return df.to_json(orient='records')
 
 
-@dataset_routes.route('/<int:id>/batch', methods=['GET'])
+@dataset_routes.route('/<int:project_id>/batch', methods=['POST'])
 @swag_from({
     'tags': ['Dataset'],
-    'summary': 'Return a batch of 20 data points with no labels',
+    'summary': 'Return a batch of data points with no labels',
     'parameters': [
         {
             'in': 'path',
-            'name': 'dataset_id',
+            'name': 'project_id',
             'type': 'integer',
             'required': True,
-            'description': 'Dataset ID'
+            'description': 'Project ID'
         },
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'batch_size': {'type': 'integer'},
+                }
+            }
+        }
     ]
 })
-def return_batch(id):
-    dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
+def return_batch_for_labelling(project_id):
+    batch_size = request.json.get('batch_size') 
+    data_status = request.json.get('data_status')
+
+    if not batch_size:
+        batch_size = 20
+
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+
+    if not dataset:
+        return jsonify({'error': 'Dataset not found'}), 404
+
     data_instances = DataInstance.query.filter(
         DataInstance.dataset_id == dataset.id,
         DataInstance.manually_processed == False
-    ).order_by(DataInstance.entropy.desc()).limit(20).all()
+    ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
     data_list = [instance.to_dict() for instance in data_instances]
     return jsonify(data_list), 200
 
@@ -113,17 +135,22 @@ def get_all_datasets():
     'summary': 'Get dataset info',
     'parameters': [
         {
-            'name': 'id',
+            'name': 'project_id',
             'in': 'path',
             'required': True,
-            'description': 'ID of the dataset to retrieve',
+            'description': 'Project ID',
             'schema': {'type': 'integer'}
         }
     ]
 })
-@dataset_routes.route('/<int:id>', methods=['GET'])
-def get_dataset(id):
-    dataset = Dataset.query.get_or_404(id)
+@dataset_routes.route('/<int:project_id>', methods=['GET'])
+def get_dataset(project_id):
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+    
+    if not dataset:
+        return jsonify({'error': 'Dataset not found'}), 404
+    
     return jsonify(dataset.to_dict()), 200
 
 

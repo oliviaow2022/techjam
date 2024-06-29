@@ -1,27 +1,34 @@
-export default function SideNav({params}){
-    const menuOptions = [{
-        "id": 0,
-        "name": "Create Project",
-        "link": "/image-classification"
+export default function SideNav({ params }) {
+  const menuOptions = [
+    {
+      id: 0,
+      name: "Label Data",
+      link: `/label/${params}`,
     },
     {
-        "id": 3,
-        "name": "Label",
-        "link": `/label/${params}`
+      id: 1,
+      name: "Train Model",
+      link: `/train-model/${params}`,
     },
     {
-        "id": 4,
-        "name": "Train Model",
-        "link": `/train-model/${params}`
+      id: 2,
+      name: "Model Performance",
+      link: `/statistics/${params}`,
     },
-    {
-        "id": 5,
-        "name": "Performance and Statistics",
-        "link": `/statistics/${params}`
-    }]
-    return(<div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
+  ];
+  return (
+    <>
+      <div className="hidden lg:flex lg:flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
         {menuOptions.map((option, index) => (
-            <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF] text-white"><a href={option.link}>{option.name}</a></p>
+          <p
+            key={index}
+            className="hover:cursor-pointer hover:text-[#FF52BF] text-white"
+          >
+            <a href={option.link}>{option.name}</a>
+          </p>
         ))}
-    </div>)
+      </div>
+      <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
+    </>
+  );
 }

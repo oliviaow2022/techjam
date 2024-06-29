@@ -26,8 +26,11 @@ def get_project_history(project_id):
     for history in history_list:
         epochs = Epoch.query.filter_by(history_id=history.id).all()
         epoch_list = [epoch.to_dict() for epoch in epochs]
+        model = Model.query.get(history.model_id)
+
         history_with_epochs.append({
             'history': history.to_dict(),
+            'model': model.to_dict(),
             'epochs': epoch_list
         })
     

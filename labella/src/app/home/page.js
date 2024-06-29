@@ -4,10 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/NavBar";
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import axios from "axios";
 
 export default function Home() {
-  const userId = localStorage.getItem('user_id')
+  const userId = localStorage.getItem("user_id");
+  const router = useRouter();
 
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/user/${userId}/projects`;
@@ -35,11 +37,15 @@ export default function Home() {
           <div className="overflow-x-auto">
             <p className="text-white font-bold mb-2">Your Existing Projects</p>
             <div className="flex gap-8">
-              {userProjects.map(project => (
-                <div className="bg-white h-56 w-64 rounded-xl flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100 text-black"><p>{project.name}</p></div>
+              {userProjects.map((project) => (
+                <div className="bg-white h-56 w-64 rounded-xl flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100 text-black"
+                  onClick={() => router.push(`/label/${project.id}`)}
+                >
+                  <p>{project.name}</p>
+                </div>
               ))}
             </div>
-            <hr className="my-4"/>
+            <hr className="my-4" />
           </div>
         )}
         <p className="text-white font-bold mb-2">Create a new project</p>

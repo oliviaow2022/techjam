@@ -78,8 +78,7 @@ export default function TrainModelButton({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <SideNav params={1} />
-        <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
+        <SideNav params={params.projectId} />
         <div className="ml-0 lg:ml-20">
           <p
             className="text-xl text-[#FF52BF] font-bold mb-8 mt-40"

@@ -1,5 +1,8 @@
 "use client";
+
 import { useState, useEffect, useRef } from "react";
+import Navbar from "@/components/NavBar";
+import SideNav from "@/components/SideNav";
 
 const LINE_OFFSET = 6;
 const ANCHOR_SIZE = 2;
@@ -344,30 +347,30 @@ export default function ObjectDetection() {
     };
 
     return (
-      <main>
+      <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
+        <Navbar />
         <div className="flex flex-row">
-          <div className="bg-[#3B3840] drop-shadow absolute top-5 left-5 rounded-lg p-4">
-            <input
-              className="bg-[#3B3840] border-b border-b-[#3FEABF] mb-5"
-              type="text"
-              value={label}
-              onChange={handleLabelChange}
-              placeholder="Enter label"
-            />
-            {Object.entries(labelCounts).map(([label, count]) => (
-              <div key={label} className="flex justify-between">
-                <span>{label}</span>
-                <span>{count}</span>
-              </div>
-            ))}
-          </div>
-          <div className="bg-white border-2 mt-32 ml-64 h-100% hidden lg:block"></div>
-          <div className="relative">
+          <SideNav params={1} />
+          <div className="ml-0 mt-32 flex flex-row">
+            <div className="bg-[#3B3840] p-4">
+              <input
+                className="bg-[#3B3840] border-b border-b-[#3FEABF] mb-5"
+                type="text"
+                value={label}
+                onChange={handleLabelChange}
+                placeholder="Enter label"
+              />
+              {Object.entries(labelCounts).map(([label, count]) => (
+                <div key={label} className="flex justify-between">
+                  <span>{label}</span>
+                  <span>{count}</span>
+                </div>
+              ))}
+            </div>
             <canvas
               ref={canvasRef}
-              width={1000}
-              height={500}
-              className="border border-black"
+              height={200}
+              className="border border-black w-full"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
