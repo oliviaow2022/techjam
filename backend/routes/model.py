@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import db, Model, Project, Dataset
-from services.model import run_training, run_labelling_using_model
+from services.model import run_training, run_labelling_using_model, add_together
 from flasgger import swag_from
 import threading
 
@@ -80,8 +80,6 @@ def create_model():
 def new_training_job(project_id):
     print('running training...')
 
-    project = Project.query.get_or_404(project_id, description="Project ID not found")
-
     model_name = request.json.get('model_name')
     num_epochs = request.json.get('num_epochs')
     train_test_split = request.json.get('train_test_split')
@@ -90,26 +88,18 @@ def new_training_job(project_id):
     if not (model_name or num_epochs or train_test_split or batch_size):
         return jsonify({'Message': 'Missing required fields'}), 404
 
-    # check if model with the same architecture already exists
-    model = Model.query.filter_by(name=model_name, project_id=project.id).first()
-    if not model:
-        model = Model(name=model_name, project_id=project_id)
-        db.session.add(model)
-        db.session.commit()
+    result = run_training.delay(project_id, model_name, num_epochs, train_test_split, batch_size)
 
-    dataset = Dataset.query.filter_by(project_id=project.id).first()
+    return jsonify({'message': 'Training started', 'job_id': result.id}), 200
 
-    print(project)
-    print(dataset)
-    print(model)
 
-    from app import app
-    app_context = app.app_context()
 
-    training_thread = threading.Thread(target=run_training, args=(app_context, project, dataset, model, num_epochs, train_test_split, batch_size))
-    training_thread.start()
-
-    return jsonify({'message': 'Training started'}), 200
+@model_routes.route('/test_celery', methods=['GET'])
+def test_celery():
+    a = 2
+    b = 3
+    result = add_together.delay(a, b)
+    return {"result_id": result.id}
 
 
 @model_routes.route('/<int:id>/label', methods=['POST'])

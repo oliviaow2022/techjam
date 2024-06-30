@@ -16,6 +16,7 @@ from routes.history import history_routes
 from routes.epoch import epoch_routes
 from routes.general import general_routes
 from dotenv import load_dotenv
+from celery_worker import celery_init_app
 import os
 
 load_dotenv()
@@ -34,6 +35,7 @@ app.register_blueprint(general_routes)
 app.config.from_object(Config)
 db.init_app(app)
 jwt = JWTManager(app)
+celery_app = celery_init_app(app)
 
 # Initialize Swagger
 swagger_config = {
@@ -123,6 +125,25 @@ def seed():
 @app.route('/')
 def hello_world():
    return jsonify({"message": "Welcome to the API!"})
+
+@app.get('/test_celery')
+def test_celery():
+    a = 2
+    b = 3
+    result = add_together.delay(a, b)
+    return {"result_id": result.id}
+    
+
+from celery.result import AsyncResult
+
+@app.get("/result/<id>")
+def task_result(id: str) -> dict[str, object]:
+    result = AsyncResult(id)
+    return {
+        "ready": result.ready(),
+        "successful": result.successful(),
+        "value": result.result if result.ready() else None,
+    }
 
 
 if __name__ == '__main__':
