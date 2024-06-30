@@ -7,14 +7,22 @@ activate virtual environment
 ```
 . .venv/bin/activate
 ```
+install dependencies
+```
+pip install -r requirements.txt
+```
 installed dependencies
 ```
 pip install flask
 pip install flask-sqlalchemy
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install pandas
-pip install PyJWT
 pip install scikit-learn
+pip install tqdm
+pip install flask-jwt-extended
+pip install Flask-Cors
+pip install python-dotenv
+pip install celery redis
 ```
 
 ### Running

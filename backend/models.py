@@ -1,5 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+from flask import jsonify
+import json
 
 db = SQLAlchemy()
 
@@ -27,6 +30,7 @@ class User(db.Model):
     
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(128), nullable=False)
     name = db.Column(db.String(128), nullable=False)
     bucket = db.Column(db.String(128), nullable=True)
     prefix = db.Column(db.String(128), nullable=True)
@@ -37,7 +41,9 @@ class Project(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "user_id": self.user_id
+            "user_id": self.user_id,
+            "type": self.type,
+            "prefix": self.prefix,
         }
 
     def __repr__(self):
@@ -62,7 +68,7 @@ class Dataset(db.Model):
         }
 
     def __repr__(self):
-        return f'<Dataset {self.name}>'
+        return f'<Dataset {self.to_dict()}>'
 
 
 class DataInstance(db.Model):
@@ -71,7 +77,7 @@ class DataInstance(db.Model):
     labels = db.Column(db.String(256), nullable=True) # list of labels separated by commas
     manually_processed = db.Column(db.Boolean, default=False, nullable=False)
     entropy = db.Column(db.Integer, default=0, nullable=False)
-    dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
+    dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=True)
 
     def to_dict(self):
         return {
@@ -97,11 +103,12 @@ class Model(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "project_id": self.project_id
+            "project_id": self.project_id,
+            "saved": self.saved
         }
 
     def __repr__(self):
-        return f'<Model {self.name}>'
+        return f'<Model {self.to_dict()}>'
     
 
 class History(db.Model):
@@ -112,6 +119,7 @@ class History(db.Model):
     f1 = db.Column(db.Float, nullable=False)
     auc = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
@@ -121,6 +129,7 @@ class History(db.Model):
             "recall": self.recall,
             "f1": self.f1,
             "auc": self.auc,
+            "created_at": self.created_at
         }
     
     

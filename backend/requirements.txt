@@ -1,5 +1,12 @@
 Flask
 pandas
-PyJWT
 flask
 flask-sqlalchemy
+flask-cors
+scikit-learn
+tqdm
+flask-jwt-extended
+flask-cors
+python-dotenv
+celery
+redis

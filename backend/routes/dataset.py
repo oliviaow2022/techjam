@@ -7,6 +7,8 @@ from werkzeug.utils import secure_filename
 import os
 import uuid
 from S3ImageDataset import s3
+from services.dataset import get_dataset_config
+import zipfile
 
 dataset_routes = Blueprint('dataset', __name__)
 
@@ -40,6 +42,8 @@ def create_dataset():
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
 
+    num_classes, class_to_label_mapping = get_dataset_config(name, num_classes, class_to_label_mapping)
+
     if not (project_id or name or num_classes or class_to_label_mapping):
         return jsonify({"error": "Bad Request", "message": "Missing fields"}), 400
 
@@ -62,7 +66,7 @@ def create_dataset():
             'type': 'integer',
             'required': True,
             'description': 'Dataset ID'
-        },
+        }
     ]
 })
 @dataset_routes.route('/<int:id>/df', methods=['GET'])
@@ -74,26 +78,47 @@ def return_dataframe(id):
     return df.to_json(orient='records')
 
 
-@dataset_routes.route('/<int:id>/batch', methods=['GET'])
+@dataset_routes.route('/<int:project_id>/batch', methods=['POST'])
 @swag_from({
     'tags': ['Dataset'],
-    'summary': 'Return a batch of 20 data points with no labels',
+    'summary': 'Return a batch of data points with no labels',
     'parameters': [
         {
             'in': 'path',
-            'name': 'dataset_id',
+            'name': 'project_id',
             'type': 'integer',
             'required': True,
-            'description': 'Dataset ID'
+            'description': 'Project ID'
         },
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'batch_size': {'type': 'integer'},
+                }
+            }
+        }
     ]
 })
-def return_batch(id):
-    dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
+def return_batch_for_labelling(project_id):
+    batch_size = request.json.get('batch_size') 
+
+    if not batch_size:
+        batch_size = 20
+
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+
+    if not dataset:
+        return jsonify({'error': 'Dataset not found'}), 404
+
     data_instances = DataInstance.query.filter(
         DataInstance.dataset_id == dataset.id,
         DataInstance.manually_processed == False
-    ).order_by(DataInstance.entropy.desc()).limit(20).all()
+    ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
     data_list = [instance.to_dict() for instance in data_instances]
     return jsonify(data_list), 200
 
@@ -105,12 +130,35 @@ def get_all_datasets():
     dataset_list = [dataset.to_dict() for dataset in datasets]
     return jsonify(dataset_list), 200
 
+@swag_from({
+    'tags': ['Dataset'],
+    'summary': 'Get dataset info',
+    'parameters': [
+        {
+            'name': 'project_id',
+            'in': 'path',
+            'required': True,
+            'description': 'Project ID',
+            'schema': {'type': 'integer'}
+        }
+    ]
+})
+@dataset_routes.route('/<int:project_id>', methods=['GET'])
+def get_dataset(project_id):
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+    
+    if not dataset:
+        return jsonify({'error': 'Dataset not found'}), 404
+    
+    return jsonify(dataset.to_dict()), 200
+
 
 @dataset_routes.route('/<int:id>/upload', methods=['POST'])
 @swag_from({
     'tags': ['Dataset'],
-    'summary': 'Upload files to a dataset',
-    'description': 'Upload multiple files to a specified dataset and store them in an S3 bucket. The filenames will be generated as UUIDs.',
+    'summary': 'Upload a zipped folder to a dataset',
+    'description': 'Upload a zipped folder to a specified dataset, extract the files, and store them in an S3 bucket. The filenames will be generated as UUIDs.',
     'parameters': [
         {
             'name': 'id',
@@ -120,42 +168,65 @@ def get_all_datasets():
             'description': 'ID of the dataset to which the files will be uploaded'
         },
         {
-            'name': 'files[]',
+            'name': 'file',
             'in': 'formData',
             'type': 'file',
             'required': True,
-            'description': 'Files to upload',
-            'collectionFormat': 'multi'
+            'description': 'Zipped folder to upload'
         }
-    ]
+    ],
+    'responses': {
+        '201': {
+            'description': 'Files successfully uploaded into dataset'
+        },
+        '400': {
+            'description': 'Invalid request or no file part in the request'
+        },
+        '404': {
+            'description': 'Dataset or Project ID not found'
+        }
+    }
 })
 def upload_files(id):
-    if 'files[]' not in request.files:
-        return jsonify({"error": "No files part in the request"}), 400
+    print(request.files)
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
     
     dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
     project = Project.query.get_or_404(dataset.project_id, description="Project ID not found")
 
-    files = request.files.getlist('files[]')
+    file = request.files['file']
+    print(file.filename)
 
-    UPLOAD_FOLDER = '/tmp'
+    UPLOAD_FOLDER = './tmp'
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
 
-    for file in files:
-        if file:
-            # sanitise filename
-            original_filename = secure_filename(file.filename)
+    # Sanitize filename
+    original_filename = secure_filename(file.filename)
+    local_zip_path = os.path.join(UPLOAD_FOLDER, original_filename)
+    file.save(local_zip_path)
 
-            extension = os.path.splitext(original_filename)[1]
-            unique_filename = f"{uuid.uuid4().hex}{extension}" if extension else uuid.uuid4().hex
-            local_filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
-            file.save(local_filepath)
+    # Unzip the file
+    with zipfile.ZipFile(local_zip_path, 'r') as zip_ref:
+        zip_ref.extractall(UPLOAD_FOLDER)
 
-            # Upload to S3
+    os.remove(local_zip_path)  # Remove the zip file after extraction
+
+    # Process each file in the extracted folder
+    for root, _, files in os.walk(UPLOAD_FOLDER):
+        for file_name in files:
+            if file_name.endswith('.zip'):  # Skip the original zip file
+                continue
+
+            local_filepath = os.path.join(root, file_name)
+            unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file_name)[1]}"
             s3_filepath = os.path.join(project.prefix, unique_filename)
-            s3.upload_file(local_filepath, project.bucket, s3_filepath)
-
+            
+            # Upload to S3
+            s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
+            
             # Save to database
             data_instance = DataInstance(data=unique_filename, dataset_id=dataset.id)
             db.session.add(data_instance)
@@ -165,4 +236,4 @@ def upload_files(id):
 
     db.session.commit()
 
-    return jsonify({'message': f'{len(files)} files successfully uploaded into dataset'}), 201
+    return jsonify({'message': 'Files successfully uploaded into dataset'}), 201

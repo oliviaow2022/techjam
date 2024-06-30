@@ -1,85 +1,267 @@
-import Image from "next/image";
-import Link from 'next/link';
+"use client";
+import { useState } from "react";
+import Navbar from "@/components/NavBar";
 import InputBox from "@/components/InputBox";
+import JsonInput from "@/components/JSONInput";
+import RadioButton from "@/components/RadioButton";
+import axios from "axios";
+import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function ImageClassification() {
-    const menuOptions = ["Project Details", "Model", "Dataset", "Label", "Fine Tune", "Performance and Statistics"]
-    const models = ["Resnet18", "Densenet121", "Alexnet", "Convnext_base"]
-    return (
-        <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
-            <div className="flex flex-row fixed top-0 h-24 w-10/12 2xl:w-full z-20 bg-[#19151E] items-end">
-                <div className="z-10 max-w-5xl w-full justify-between text-sm lg:flex">
-                    <Link href="/"><p className="text-xl font-bold">Labella</p></Link>
-                </div>
-                <div className="flex justify-around w-96">
-                    <p className="mx-4">Platform</p>
-                    <p className="mr-2">Datasets</p>
-                    <p>Documentation</p>
-                </div>
+  const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
+  const userId = localStorage.getItem("user_id");
+  const jwtToken = localStorage.getItem("jwt");
+  console.log(jwtToken)
+
+  const [zipFile, setZipFile] = useState(null);
+
+  const [parsedJson, setParsedJson] = useState(null);
+  const handleJsonChange = (parsedJson) => {
+    setParsedJson(parsedJson);
+  };
+
+  const [selectedOption, setSelectedOption] = useState("Existing dataset");
+  const handleOptionChange = (e) => {
+    setSelectedOption(e.target.value);
+  };
+
+  const [selectedLabelOption, setSelectedLabelOption] = useState(
+    "Single Label Classification"
+  );
+  const handleLabelOptionChange = (e) => {
+    setSelectedLabelOption(e.target.value);
+  };
+
+  const handleFileChange = (e) => {
+    console.log(e.target.files[0]);
+    setZipFile(e.target.files[0]);
+  };
+
+  const [formData, setFormData] = useState({
+    projectName: "",
+    projectType: "image-classification",
+    userId: userId,
+    datasetName: "",
+    numClasses: "",
+    s3_prefix: "my-prefix/",
+    classToLabelMapping: "",
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const validate = () => {
+    let errors = {};
+
+    if (!formData.projectName) {
+      errors.projectName = "Project Name is required";
+    }
+    if (!formData.datasetName) {
+      errors.datasetName = "Dataset name is required";
+    }
+    if (!formData.numClasses) {
+      errors.numClasses = "Number of classes is required";
+    }
+    if (selectedOption === "Custom Dataset" && !zipFile) {
+      errors.zipFile = "Please select a file to upload.";
+    }
+    return errors;
+  };
+
+  const router = useRouter();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length === 0) {
+      try {
+        const createResponse = await axios.post(
+          apiEndpoint,
+          {
+            project_name: formData.projectName,
+            project_type: formData.projectType,
+            dataset_name: formData.datasetName,
+            num_classes: formData.numClasses,
+            class_to_label_mapping: parsedJson,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwtToken}`,
+            },
+          }
+        );
+
+        console.log(createResponse);
+
+        const zipFileFormData = new FormData();
+        zipFileFormData.append("file", zipFile);
+
+        const uploadFileResponse = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_ENDPOINT}/dataset/${createResponse.data.dataset.id}/upload`,
+          zipFileFormData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
+        console.log(uploadFileResponse.data);
+
+        if (
+          createResponse.status === 200 &&
+          uploadFileResponse.status === 200
+        ) {
+          toast.success("Success");
+        }
+
+        router.push(`/label/${createResponse.data.project.id}`);
+        // Reset form or handle successful submission
+      } catch (error) {
+        console.error("Error submitting form:", error);
+      } 
+    }
+  };
+
+  return (
+    <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
+      <Navbar />
+      <div className="ml-0 mt-40 w-full">
+        <p
+          className="text-xl text-[#FF52BF] font-bold mb-8"
+          id="Project Details"
+        >
+          Image Classification
+        </p>
+        <form
+          onSubmit={handleSubmit}
+          className="w-full flex flex-col lg:flex-row lg:justify-between"
+        >
+          <div>
+            <p className="font-bold mb-2">Create a new project</p>
+            <div id="Model"></div>
+            <div className="flex flex-col gap-4">
+              <InputBox
+                label={"Project Name"}
+                name="projectName"
+                value={formData.projectName}
+                onChange={handleChange}
+                error={errors.projectName}
+              />
             </div>
-            <div className="flex flex-row">
-                <div className="flex flex-col gap-4 mr-8 pt-2 fixed top-40 z-10">
-                    {menuOptions.map((option, index) => (
-                        <p key={index} className="hover:cursor-pointer hover:text-[#FF52BF]">{option}</p>
-                    ))}
-                </div>
-                <div className="bg-white border-2 mt-32 ml-64 h-screen sticky"></div>
-                <div className="ml-20">
-                    <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">Image Classification</p>
-                    <div className="mb-4">
-                        <p className="font-bold mb-4">Create a new project</p>
-                        <InputBox label={"Project Name"} />
-                    </div>
+          </div>
+          <div className="bg-white border-2 mx-5 h-100% hidden lg:block"></div>
+          <div className="flex flex-col gap-y-2">
+            <p className="font-bold mt-12 lg:mt-0 mb-2">Dataset</p>
+            <div className="flex gap-4">
+              <RadioButton
+                optionName={"Custom dataset"}
+                selectedOption={selectedOption}
+                handleOptionChange={handleOptionChange}
+              />
+              <RadioButton
+                optionName={"Existing dataset"}
+                selectedOption={selectedOption}
+                handleOptionChange={handleOptionChange}
+              />
+            </div>
+            {selectedOption === "Custom dataset" ? (
+              <div>
+                <InputBox
+                  label={"Name of dataset"}
+                  name="datasetName"
+                  value={formData.datasetName}
+                  onChange={handleChange}
+                  error={errors.datasetName}
+                />
+              </div>
+            ) : (
+              <div>
+                <InputBox
+                  label={"Name of dataset"}
+                  name="datasetName"
+                  value={formData.datasetName}
+                  onChange={handleChange}
+                  error={errors.datasetName}
+                />
+              </div>
+            )}
 
-                    <div className="mb-4">
-                        <p className="mt-4">Select Model</p>
-                        <div className="grid grid-cols-4 gap-6">
-                            {models.map((model, index) => (
-                                <div key={index} className="flex border w-40 2xl:w-64 items-center justify-center rounded-lg h-8 hover:bg-[#FF52BF] cursor-pointer hover:text-black">
-                                    {model}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+            <div className="flex gap-4 my-2">
+              <RadioButton
+                optionName={"Single Label Classification"}
+                selectedOption={selectedLabelOption}
+                handleOptionChange={handleLabelOptionChange}
+              />
+              <RadioButton
+                optionName={"Multilabel Classification"}
+                selectedOption={selectedLabelOption}
+                handleOptionChange={handleLabelOptionChange}
+              />
+            </div>
+            {selectedLabelOption === "Single Label Classification" ? (
+              <div>
+                <InputBox
+                  label={"Number of classes"}
+                  name="numClasses"
+                  value={formData.numClasses}
+                  onChange={handleChange}
+                  error={errors.numClasses}
+                />
+              </div>
+            ) : (
+              <div>
+                <InputBox
+                  label={"Number of labels per image"}
+                  name="numClasses"
+                  value={formData.numClasses}
+                  onChange={handleChange}
+                  error={errors.numClasses}
+                />
+              </div>
+            )}
 
-                    <div className="mb-4">
-                        <InputBox label={"Number of training epochs"} />
-                    </div>
+            <JsonInput
+              label={"Class to Label Mapping (JSON)"}
+              name="classToLabelMapping"
+              onJsonChange={handleJsonChange}
+            />
 
-                    <div className="mb-4">
-                        <InputBox label={"Train-test split ratio"} />
-                    </div>
-
-                    <div className="mb-4">
-                        <InputBox label={"Batch size"} />
-                    </div>
-
-
-                    <div className="mb-4">
-                        <p className="">Choose Dataset</p>
-                        <div className="flex border w-64 rounded-lg pl-4 py-1 items-center">
-                            <img src="/upload.png" alt="upload icon" className="h-4 mr-2"></img>
-                            <p>Upload Dataset</p>
-                        </div>
-                    </div>
-                    <div className="mb-4">
-                        <p className="mb-2">Number of classes</p>
-                        <div className="flex border w-64 rounded-lg pl-4 py-1 items-center">
-                            10
-                        </div>
-                    </div>
-                    <div>
-                        <div className="flex bg-[#FF52BF] w-32 rounded-full justify-center items-center cursor-pointer">
-                            <p>Create Project</p>
-                        </div>
-                    </div>
-
-
-
-                </div>
+            <div>
+              <label htmlFor="input-zip-file" className="block text-white my-1">
+                Upload Dataset
+              </label>
+              <input
+                type="file"
+                id="input-zip-file"
+                accept=".zip"
+                onChange={handleFileChange}
+              />
+              {errors.zipFile && (
+                <p className="text-red-500 text-sm">{errors.zipFile}</p>
+              )}
             </div>
 
-
-        </main>
-    );
+            <button
+              type="submit"
+              className="flex my-4 p-2 bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer text-white"
+            >
+              Create Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  );
 }
