@@ -9,7 +9,7 @@ from tqdm import tqdm
 from app import app
 with app.app_context():
 
-    S3_BUCKET = 'dltechjam'
+    S3_BUCKET = os.getenv('S3_BUCKET')
     S3_PREFIX = 'fashion-mnist'
 
     train_dataset = torchvision.datasets.FashionMNIST('~/.pytorch/F_MNIST_data', download=True, train=True, transform=data_transforms['fashion_mnist'])

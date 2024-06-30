@@ -15,6 +15,11 @@ export default function SideNav({ params }) {
       name: "Model Performance",
       link: `/statistics/${params}`,
     },
+    {
+      id: 3,
+      name: "Run Model",
+      link: `/run-model/${params}`,
+    },
   ];
   return (
     <>

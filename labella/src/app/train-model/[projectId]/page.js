@@ -18,7 +18,6 @@ export default function TrainModelButton({ params }) {
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,10 +26,10 @@ export default function TrainModelButton({ params }) {
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      setIsSubmitting(true);
       try {
         let apiEndpoint =
           process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${params.projectId}/train`;
+          console.log(formData)
         const response = await axios.post(apiEndpoint, formData);
         
         console.log(response)
@@ -40,9 +39,7 @@ export default function TrainModelButton({ params }) {
         }
       } catch (err) {
         console.log(err);
-      } finally {
-        setIsSubmitting(false);
-      }
+      } 
     }
   };
 
@@ -140,7 +137,6 @@ export default function TrainModelButton({ params }) {
               type="submit"
               className="flex p-2 bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer text-white"
               onClick={handleSubmit}
-              disabled={isSubmitting}
             >
               Train Model
             </button>

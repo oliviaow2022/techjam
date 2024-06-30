@@ -130,6 +130,7 @@ def train_model(model, model_db, project, train_dataloader, val_dataloader, crit
         # save model to db
         model_db.saved = model_path
         db.session.commit()
+        print('model saved to', model_path)
 
     return model, history
 
@@ -210,7 +211,7 @@ def run_training(app_context, project, dataset, model, NUM_EPOCHS, TRAIN_TEST_SP
         optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-        ml_model, model_history = train_model(ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
+        ml_model, model_history = train_model(ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, num_epochs=NUM_EPOCHS)
 
         accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 

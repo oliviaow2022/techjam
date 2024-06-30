@@ -4,13 +4,15 @@ from flasgger import swag_from
 from services.dataset import get_dataset_config
 import json
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import os
+import uuid
 
 general_routes = Blueprint('general', __name__)
 
 @general_routes.route('/create', methods=['POST'])
 @jwt_required()
 @swag_from({
-    'summary': 'Create a project and dataset in one API call',
+    'description': 'Create a project, dataset, and model in one API call.',
     'security': [{'Bearer': []}],
     'parameters': [
         {
@@ -29,9 +31,6 @@ general_routes = Blueprint('general', __name__)
                 'properties': {
                     'project_name': {'type': 'string', 'description': 'Name of the project', 'example': 'Project A'},
                     'project_type': {'type': 'string', 'description': 'Name of the project', 'example': 'Multi-Class Classification'},
-                    'user_id': {'type': 'integer', 'description': 'ID of the user', 'example': 1},
-                    's3_bucket': {'type': 'string', 'description': 'S3 bucket name', 'example': 'my-s3-bucket'},
-                    's3_prefix': {'type': 'string', 'description': 'S3 prefix path', 'example': 'my-prefix/'},
                     'dataset_name': {'type': 'string', 'description': 'Name of the dataset', 'example': 'Dataset A'},
                     'num_classes': {'type': 'integer', 'description': 'Number of classes in the dataset', 'example': 2},
                     'class_to_label_mapping': {
@@ -39,8 +38,9 @@ general_routes = Blueprint('general', __name__)
                         'description': 'Mapping of class indices to labels',
                         'example': {0: 'class_a', 1: 'class_b'}
                     },
+                    'model_name': {'type': 'string', 'description': 'Name of the model', 'example': 'resnet18'}
                 },
-                'required': ['project_name', 'user_id', 'dataset_name', 'num_classes', 'class_to_label_mapping']
+                'required': ['project_name', 'user_id', 'dataset_name', 'num_classes', 'class_to_label_mapping', 'model_name']
             }
         }
     ]
@@ -48,14 +48,15 @@ general_routes = Blueprint('general', __name__)
 def create_project_dataset():
     project_name = request.json.get('project_name')
     project_type = request.json.get('project_type')
-    user_id = get_jwt_identity()
-    s3_bucket = request.json.get('s3_bucket')
-    s3_prefix = request.json.get('s3_prefix')
     dataset_name = request.json.get('dataset_name')
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
 
-    num_classes, class_to_label_mapping = get_dataset_config(project_name, num_classes, class_to_label_mapping)
+    user_id = get_jwt_identity()
+    s3_bucket = os.getenv('S3_BUCKET')
+    s3_prefix = str(uuid.uuid4())
+
+    num_classes, class_to_label_mapping, s3_prefix = get_dataset_config(project_name, num_classes, class_to_label_mapping, s3_prefix)
 
     # Validate input
     if not all([project_name, project_type, user_id, dataset_name, num_classes, class_to_label_mapping]):

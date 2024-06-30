@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import LabelButton from "@/components/LabelButton";
 import ImageSlider from "@/components/ImageSlider";
 import SideNav from "@/components/SideNav";
@@ -30,7 +29,7 @@ export default function Label({ params }) {
 
   const fetchBatch = async () => {
     try {
-      const batchResponse = await axios.get(batchApiEndpoint);
+      const batchResponse = await axios.post(batchApiEndpoint, {});
       setImages(batchResponse.data);
       console.log(batchResponse.data);
     } catch (error) {
@@ -44,7 +43,7 @@ export default function Label({ params }) {
     // to get class_to_label_mapping
     const fetchDataset = async () => {
       try {
-        const datasetResponse = await axios.post(datasetApiEndpoint);
+        const datasetResponse = await axios.get(datasetApiEndpoint);
         setDatasetData(datasetResponse.data);
       } catch (error) {
         setError(error.message);
@@ -117,7 +116,7 @@ export default function Label({ params }) {
               <div className="bg-[#3B3840] rounded-lg w-96 p-4">
                 <p className="text-white font-bold mb-2">Class</p>
                 <div className="flex flex-wrap justify-between">
-                  {Object.entries(datasetData.class_to_label_mapping).map(
+                  {Object.entries(datasetData?.class_to_label_mapping).map(
                     ([key, value]) => (
                       <LabelButton
                         key={key}

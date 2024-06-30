@@ -3,8 +3,14 @@ from io import BytesIO
 from PIL import Image
 import boto3
 import torch
+import os
 
-s3 = boto3.client('s3')
+s3 = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('S3_ACCESS_KEY'),
+    aws_secret_access_key=os.getenv('S3_SECRET_ACCESS_KEY')
+)
+
 
 def download_weights_from_s3(bucket_name, key):
     obj = s3.get_object(Bucket=bucket_name, Key=key)

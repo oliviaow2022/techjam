@@ -35,7 +35,7 @@ export default function Statistics({ params }) {
       <Navbar />
       <div className="flex flex-row">
         <SideNav params={params.projectId} />
-        <div className="ml-0 lg:ml-20 mt-20">
+        <div className="ml-0 lg:ml-20 mt-32">
           <p className="text-xl text-[#FF52BF] font-bold mb-8">
             Image Classification
           </p>

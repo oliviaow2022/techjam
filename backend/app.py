@@ -15,6 +15,10 @@ from routes.model import model_routes
 from routes.history import history_routes
 from routes.epoch import epoch_routes
 from routes.general import general_routes
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -56,8 +60,8 @@ def seed():
     db.session.add(user)
     db.session.commit()
 
-    ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket='dltechjam', prefix='transfer-antsbees', type="1")
-    fashion_mnist = Project(name="Fashion MNIST", user_id=user.id, type="1")
+    ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="1")
+    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="1")
     cifar10 = Project(name="Cifar-10", user_id=user.id, type="1")
     db.session.add_all([ants_bees, fashion_mnist, cifar10])
     db.session.commit()

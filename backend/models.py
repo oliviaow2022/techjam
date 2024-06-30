@@ -1,6 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from flask import jsonify
+import json
 
 db = SQLAlchemy()
 
@@ -40,7 +42,8 @@ class Project(db.Model):
             "id": self.id,
             "name": self.name,
             "user_id": self.user_id,
-            "type": self.type
+            "type": self.type,
+            "prefix": self.prefix,
         }
 
     def __repr__(self):
@@ -100,7 +103,8 @@ class Model(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "project_id": self.project_id
+            "project_id": self.project_id,
+            "saved": self.saved
         }
 
     def __repr__(self):

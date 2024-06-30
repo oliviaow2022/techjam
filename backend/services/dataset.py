@@ -1,5 +1,6 @@
 from models import Dataset, DataInstance
 import pandas as pd
+import uuid
 
 def get_dataframe(dataset_id, return_labelled=True):
     dataset = Dataset.query.get_or_404(dataset_id, description="Dataset ID not found")
@@ -17,7 +18,7 @@ def get_dataframe(dataset_id, return_labelled=True):
     return df
 
 
-def get_dataset_config(dataset_name, num_classes, class_to_label_mapping):
+def get_dataset_config(dataset_name, num_classes, class_to_label_mapping, s3_prefix):
     if dataset_name == 'fashion-mnist':
         num_classes = 10
         class_to_label_mapping = {
@@ -32,6 +33,7 @@ def get_dataset_config(dataset_name, num_classes, class_to_label_mapping):
             8: 'Bag',
             9: 'Ankle Boot'
         }
+        s3_prefix = 'fashion-mnist'
     elif dataset_name == 'cifar-10':
         num_classes = 10
         class_to_label_mapping = {
@@ -47,4 +49,4 @@ def get_dataset_config(dataset_name, num_classes, class_to_label_mapping):
             9: 'truck'
         }
         
-    return num_classes, class_to_label_mapping
+    return num_classes, class_to_label_mapping, s3_prefix

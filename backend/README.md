@@ -21,6 +21,8 @@ pip install scikit-learn
 pip install tqdm
 pip install flask-jwt-extended
 pip install Flask-Cors
+pip install python-dotenv
+pip install celery redis
 ```
 
 ### Running

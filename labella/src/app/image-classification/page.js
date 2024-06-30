@@ -1,17 +1,20 @@
 "use client";
-import React, { useState } from "react";
+import { useState } from "react";
 import Navbar from "@/components/NavBar";
 import InputBox from "@/components/InputBox";
 import JsonInput from "@/components/JSONInput";
 import RadioButton from "@/components/RadioButton";
-import SideNav from "@/components/SideNav";
 import axios from "axios";
+import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 export default function ImageClassification() {
   const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
   const userId = localStorage.getItem("user_id");
   const jwtToken = localStorage.getItem("jwt");
+  console.log(jwtToken)
+
+  const [zipFile, setZipFile] = useState(null);
 
   const [parsedJson, setParsedJson] = useState(null);
   const handleJsonChange = (parsedJson) => {
@@ -30,28 +33,22 @@ export default function ImageClassification() {
     setSelectedLabelOption(e.target.value);
   };
 
-  const [projectCreated, setProjectCreated] = useState(false);
-
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwtToken}`,
-    },
+  const handleFileChange = (e) => {
+    console.log(e.target.files[0]);
+    setZipFile(e.target.files[0]);
   };
+
   const [formData, setFormData] = useState({
     projectName: "",
     projectType: "image-classification",
     userId: userId,
     datasetName: "",
     numClasses: "",
-    s3_bucket: "my-s3-bucket",
     s3_prefix: "my-prefix/",
     classToLabelMapping: "",
-    config: config,
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -74,6 +71,9 @@ export default function ImageClassification() {
     if (!formData.numClasses) {
       errors.numClasses = "Number of classes is required";
     }
+    if (selectedOption === "Custom Dataset" && !zipFile) {
+      errors.zipFile = "Please select a file to upload.";
+    }
     return errors;
   };
 
@@ -84,33 +84,53 @@ export default function ImageClassification() {
     const validationErrors = validate();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length === 0) {
-      setIsSubmitting(true);
       try {
-        const response = await axios.post(
+        const createResponse = await axios.post(
           apiEndpoint,
           {
-            name: formData.projectName,
-            dataset_name: formData.datasetName,
-            num_classes: formData.numClasses,
             project_name: formData.projectName,
             project_type: formData.projectType,
+            dataset_name: formData.datasetName,
+            num_classes: formData.numClasses,
             class_to_label_mapping: parsedJson,
-            user_id: formData.userId,
-            s3_bucket: formData.bucket || "", // optional
-            s3_prefix: formData.prefix || "", // optional
           },
-          formData.config
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwtToken}`,
+            },
+          }
         );
 
-        console.log("Form submitted successfully:", response.data);
-        setProjectCreated(true);
-        router.push(`/label/${response.data.project.id}`);
+        console.log(createResponse);
+
+        const zipFileFormData = new FormData();
+        zipFileFormData.append("file", zipFile);
+
+        const uploadFileResponse = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_ENDPOINT}/dataset/${createResponse.data.dataset.id}/upload`,
+          zipFileFormData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+
+        console.log(uploadFileResponse.data);
+
+        if (
+          createResponse.status === 200 &&
+          uploadFileResponse.status === 200
+        ) {
+          toast.success("Success");
+        }
+
+        router.push(`/label/${createResponse.data.project.id}`);
         // Reset form or handle successful submission
       } catch (error) {
         console.error("Error submitting form:", error);
-      } finally {
-        setIsSubmitting(false);
-      }
+      } 
     }
   };
 
@@ -141,10 +161,10 @@ export default function ImageClassification() {
               />
             </div>
           </div>
-          <div className="bg-white border-2 ml-64 h-100% hidden lg:block"></div>
-          <div>
+          <div className="bg-white border-2 mx-5 h-100% hidden lg:block"></div>
+          <div className="flex flex-col gap-y-2">
             <p className="font-bold mt-12 lg:mt-0 mb-2">Dataset</p>
-            <div className="flex gap-4 mb-4">
+            <div className="flex gap-4">
               <RadioButton
                 optionName={"Custom dataset"}
                 selectedOption={selectedOption}
@@ -178,7 +198,7 @@ export default function ImageClassification() {
               </div>
             )}
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 my-2">
               <RadioButton
                 optionName={"Single Label Classification"}
                 selectedOption={selectedLabelOption}
@@ -218,15 +238,28 @@ export default function ImageClassification() {
               onJsonChange={handleJsonChange}
             />
 
+            <div>
+              <label htmlFor="input-zip-file" className="block text-white my-1">
+                Upload Dataset
+              </label>
+              <input
+                type="file"
+                id="input-zip-file"
+                accept=".zip"
+                onChange={handleFileChange}
+              />
+              {errors.zipFile && (
+                <p className="text-red-500 text-sm">{errors.zipFile}</p>
+              )}
+            </div>
+
             <button
               type="submit"
               className="flex my-4 p-2 bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer text-white"
-              disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating..." : "Create Project"}
+              Create Project
             </button>
           </div>
-          {projectCreated ? <div>Success!</div> : <div></div>}
         </form>
       </div>
     </main>
