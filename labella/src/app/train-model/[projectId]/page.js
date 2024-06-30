@@ -55,17 +55,17 @@ export default function TrainModelButton({ params }) {
   const validate = () => {
     let errors = {};
 
-    if (!formData.batchSize) {
-      errors.batchSize = "Batch size is required";
+    if (!formData.batch_size) {
+      errors.batch_size = "Batch size is required";
     }
-    if (!formData.epochs) {
-      errors.epochs = "Number of epochs is required";
+    if (!formData.num_epochs) {
+      errors.num_epochs = "Number of epochs is required";
     }
-    if (!formData.splitRatio) {
-      errors.splitRatio = "Train test split ratio is required";
+    if (!formData.train_test_split) {
+      errors.train_test_split = "Train test split ratio is required";
     }
     if (!formData.model_name) {
-      errors.model = "Model is required";
+      errors.model_name = "Model is required";
     }
 
     return errors;
@@ -101,35 +101,35 @@ export default function TrainModelButton({ params }) {
                   {model}
                 </div>
               ))}
-              {errors.model && (
-                <p className="text-red-500 text-sm">{errors.model}</p>
+              {errors.model_name && (
+                <p className="text-red-500 text-sm">{errors.model_name}</p>
               )}
             </div>
             <div className="mb-4">
               <InputBox
                 label={"Batch size"}
-                name="batchSize"
-                value={formData.batchSize}
+                name="batch_size"
+                value={formData.batch_size}
                 onChange={handleChange}
-                error={errors.batchSize}
+                error={errors.batch_size}
               />
             </div>
             <div className="mb-4">
               <InputBox
                 label={"Number of training epochs"}
-                name="epochs"
-                value={formData.epochs}
+                name="num_epochs"
+                value={formData.num_epochs}
                 onChange={handleChange}
-                error={errors.epochs}
+                error={errors.num_epochs}
               />
             </div>
             <div className="mb-4">
               <InputBox
                 label={"Train-test split ratio"}
-                name="splitRatio"
-                value={formData.splitRatio}
+                name="train_test_split"
+                value={formData.train_test_split}
                 onChange={handleChange}
-                error={errors.splitRatio}
+                error={errors.train_test_split}
               />
             </div>
 

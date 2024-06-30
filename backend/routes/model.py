@@ -83,9 +83,9 @@ def new_training_job(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
 
     model_name = request.json.get('model_name')
-    num_epochs = request.json.get('num_epochs')
-    train_test_split = request.json.get('train_test_split')
-    batch_size = request.json.get('batch_size')
+    num_epochs = int(request.json.get('num_epochs'))
+    train_test_split = float(request.json.get('train_test_split'))
+    batch_size = int(request.json.get('batch_size'))
 
     if not (model_name or num_epochs or train_test_split or batch_size):
         return jsonify({'Message': 'Missing required fields'}), 404
