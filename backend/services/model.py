@@ -237,9 +237,21 @@ def run_labelling_using_model(app_context, project, dataset, model):
     with app_context:
         # initialise model
         if model.name == 'resnet18':
-            ml_model = models.resnet18(weights='DEFAULT')
+            ml_model = torchvision.models.resnet18(weights='DEFAULT')
             num_ftrs = ml_model.fc.in_features
             ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        elif model.name == 'densenet121':
+            ml_model = torchvision.models.densenet121(weights='DEFAULT')
+            num_ftrs = ml_model.classifier.in_features
+            ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        elif model.name == 'alexnet':
+            ml_model = torchvision.models.alexnet(weights='DEFAULT')
+            num_ftrs = ml_model.classifier[6].in_features
+            ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        elif model.name == 'convnext_base':
+            ml_model = torchvision.models.convnext_base(weights='DEFAULT')
+            num_ftrs = ml_model.classifier[2].in_features
+            ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
 
         # load in weights
         model_weights = download_weights_from_s3(project.bucket, model.saved)
@@ -250,7 +262,7 @@ def run_labelling_using_model(app_context, project, dataset, model):
         df = get_dataframe(dataset.id, return_labelled=False)
 
         s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=False)
-        s3_dataset.transform = data_transforms['val']
+        s3_dataset.transform = data_transforms['image_val']
 
         dataloader = DataLoader(s3_dataset, batch_size=32, shuffle=True)
 

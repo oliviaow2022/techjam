@@ -136,6 +136,9 @@ def run_model(id):
     if not model.saved:
         return jsonify({'Saved model does not exist'}), 404
 
+    from app import app
+    app_context = app.app_context()
+
     training_thread = threading.Thread(target=run_labelling_using_model, args=(app_context, project, dataset, model))
     training_thread.start()
 
