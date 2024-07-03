@@ -18,19 +18,23 @@ import numpy as np
 
 # Unlabeled dataset class
 class UnlabelledDataset(Dataset):
-    def __init__(self, root_dir, transforms=None):
-        self.root_dir = root_dir
-        self.transforms = transforms or T.ToTensor()
-        self.images = os.listdir(root_dir)
+    def __init__(self, root: str, transforms=None):
+        self.root = root
+        self.transforms = transforms
+        self.image_paths = [os.path.join(root, fname) for fname in os.listdir(root) if fname.endswith('.png')]
 
-    def __len__(self):
-        return len(self.images)
+    def __getitem__(self, index: int) -> torch.Tensor:
+        path = self.image_paths[index]
+        img = Image.open(path).convert("RGB")  # Convert to RGB
 
-    def __getitem__(self, idx):
-        img_name = os.path.join(self.root_dir, self.images[idx])
-        image = Image.open(img_name).convert("RGB")
-        image = self.transforms(image)
-        return image
+        if self.transforms is not None:
+            img = self.transforms(img)
+
+        return img
+
+    def __len__(self) -> int:
+        return len(self.image_paths)
+
 
 
 class Cppe5(torch.utils.data.Dataset):
@@ -162,7 +166,6 @@ def split_train_data(data_loader):
     val_loader = DataLoader(val_set, batch_size=data_loader.batch_size, shuffle=False, collate_fn=data_loader.collate_fn)
     return train_loader, val_loader
 
-
 def train(model, train_loader, device, num_epochs=5):
     model.to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
@@ -189,16 +192,36 @@ def train(model, train_loader, device, num_epochs=5):
             break
     return model
 
-class Wrapper:
-    def __init__(self, model):
-        self.model = model
+def custom_object_detection_uncertainty(model, X_pool, n_instances=1, **kwargs):
+    uncertainties = []
+
+    model.eval()
+    with torch.no_grad():
+        for img_tensor in X_pool:
+            outputs = model([img_tensor])  # Perform inference
+            scores = outputs[0]['scores']  # Extract confidence scores
+            uncertainty = 1 - scores.max().item() if len(scores) > 0 else 1.0
+            uncertainties.append(uncertainty)
+
+    query_idx = np.argsort(uncertainties)[-n_instances:]
+    return query_idx, [X_pool[i] for i in query_idx]
+
+# class Wrapper:
+#     def __init__(self, model, device):
+#         self.model = model
+#         self.device = device
     
-    def predict_proba(self, X):
-        self.model.eval()
-        with torch.no_grad():
-            outputs = self.model([x.to(device) for x in X])  # Ensure each image in X is converted and passed as a list
-            probs = [output['scores'].cpu().numpy() for output in outputs]
-        return probs
+#     def predict(self, X):
+#         self.model.eval()
+#         with torch.no_grad():
+#             outputs = self.model([x.to(self.device) for x in X])
+#         return outputs
+
+#     def query(self, X_pool, n_instances=1, **kwargs):
+#         return custom_object_detection_uncertainty(self.model, X_pool, n_instances)
+
+
+
 # # Function to extract data from DataLoader
 # def extract_data(dataloader):
 #     X = []
@@ -229,7 +252,9 @@ def retrain_model(model, train_loader, new_data, num_epochs=1):
 
 # Function to iterate the active learning process
 def active_learning_iteration(learner, X_unlabeled, n_queries=10):
-    query_idx, _ = learner.query(X_unlabeled, n_instances=n_queries)
+    # query_idx, query_sample = learner.query(X)
+
+    query_idx, query_sample = learner.query(X_unlabeled, n_instances=n_queries)
     print("ABCDJDKEWNFJKNFKJWNEKFJN")
     new_data = label_data(query_idx)
 
@@ -239,6 +264,11 @@ def active_learning_iteration(learner, X_unlabeled, n_queries=10):
 
     return new_data
 
+def dataloader_to_tensor_list(dataloader):
+    x = []
+    for images in dataloader:
+        x.extend(images)
+    return x
 
 labelled_data_loader = train_data_loader()
 
@@ -252,6 +282,10 @@ model = get_model_instance_segmentation(num_classes)
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 train_model = train(model, val_loader, device=device)
+# wrapped_model = Wrapper(train_model, device)
+# Define the criterion (loss function) and optimizer
+criterion = None  # Faster R-CNN uses its own criterion
+optimizer = torch.optim.Adam(train_model.parameters(), lr=0.001)
 
 # # Define your active learner with uncertainty sampling
 learner = ActiveLearner(
@@ -262,14 +296,51 @@ learner = ActiveLearner(
 )
 
 # Create a dataloader for the unlabeled dataset
-unlabeled_dataset = UnlabelledDataset(root_dir="data/unlabelled_data")
-unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=2, shuffle=False)
+unlabeled_dataset = UnlabelledDataset("data/unlabelled_data", transforms=tensor_transform())
+unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=1, shuffle=False)
 
 model = train_model
+
+n_queries = 10
 # Run active learning iterations
-n_iterations = 5
-for iteration in range(n_iterations):
-    new_data = active_learning_iteration(learner, unlabeled_loader)
+# Perform active learning loop
+for i in range(n_queries):
+    print("Query", i)
+
+    # Query for the most uncertain instances
+    X_pool = dataloader_to_tensor_list(unlabeled_loader)
+    query_idx, _ = learner.query(X_pool)
+    print(query_idx)
+
+    # Simulate labeling for demo purposes (in real case, you'd label these manually)
+    X_new = [unlabeled_dataset[i][0] for i in query_idx]
+    y_new = [labelled_dataset[i][1] for i in query_idx]
+
+
+# Evaluate the model
+def evaluate_model(model, data_loader):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for images, labels in data_loader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)  # Get the predicted classes
+            total += labels.size(0)  # Increase total by batch size
+            correct += (predicted == labels).sum().item()  # Count correct predictions            
+            # predicted = (outputs > 0.5).float()  # Use 0.5 threshold for binary classification
+            # total += labels.size(0)
+            # total += labels.numel()
+            # correct += ((predicted == labels).sum(dim=1) == labels.size(1)).sum().item()
+            confidence_levels = torch.nn.functional.softmax(outputs, dim=1)
+            entropy = -torch.sum(confidence_levels * torch.log2(confidence_levels))
+
+            accuracy = correct / total
+    return entropy, accuracy
+
+entropy, model_accuracy = evaluate_model(model, DataLoader(labelled_dataset, batch_size=32))
+print(f"Accuracy after active learning: {model_accuracy}")
+print(f"Entropy after active learning: {entropy}")
     # model = retrain_model(model, train_loader, new_data)
 
 # while learner.query_strategy(train_loader.dataset):
