@@ -83,9 +83,9 @@ def new_training_job(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
 
     model_name = request.json.get('model_name')
-    num_epochs = request.json.get('num_epochs')
-    train_test_split = request.json.get('train_test_split')
-    batch_size = request.json.get('batch_size')
+    num_epochs = int(request.json.get('num_epochs'))
+    train_test_split = float(request.json.get('train_test_split'))
+    batch_size = int(request.json.get('batch_size'))
 
     if not (model_name or num_epochs or train_test_split or batch_size):
         return jsonify({'Message': 'Missing required fields'}), 404
@@ -135,6 +135,9 @@ def run_model(id):
     # check that model has been trained
     if not model.saved:
         return jsonify({'Saved model does not exist'}), 404
+
+    from app import app
+    app_context = app.app_context()
 
     training_thread = threading.Thread(target=run_labelling_using_model, args=(app_context, project, dataset, model))
     training_thread.start()

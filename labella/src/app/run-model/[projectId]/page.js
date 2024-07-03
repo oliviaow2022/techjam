@@ -4,6 +4,7 @@ import axios from "axios";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/NavBar";
 import SideNav from "@/components/SideNav";
+import { toast } from 'react-hot-toast'
 
 export default function RunModel({ params }) {
   let getModelsEndpoint =
@@ -30,7 +31,7 @@ export default function RunModel({ params }) {
   const handleSubmit = async () => {
     try {
       let response = await axios.post(
-        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/label`
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${selectedModelId}/label`
       );
       if (response.status === 200) {
         toast.success("Job created");

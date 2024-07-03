@@ -89,50 +89,54 @@ def validate_epoch(model, dataloader, criterion, device):
     return epoch_loss, accuracy
 
 
-def train_model(model, model_db, project, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, num_epochs=3):
-    since = time.time()
+def train_model(app_context, model, model_db, project, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, NUM_EPOCHS):
 
-    # Create a temporary directory to save training checkpoints
-    with TemporaryDirectory() as tempdir:
-        best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
-        torch.save(model.state_dict(), best_model_params_path)
-        best_acc = 0.0
-        history = []
+    with app_context:
+        since = time.time()
 
-        for epoch in range(num_epochs):
-            # Each epoch has a training and validation phase
-            train_loss, train_acc = train_epoch(model, train_dataloader, criterion, optimizer, device)
-            scheduler.step()
-            val_loss, val_acc = validate_epoch(model, val_dataloader, criterion, device)
+        # Create a temporary directory to save training checkpoints
+        with TemporaryDirectory() as tempdir:
+            best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
+            torch.save(model.state_dict(), best_model_params_path)
+            best_acc = 0.0
+            history = []
 
-            # Cache metrics for later comparison
-            history.append([train_acc, val_acc, train_loss, val_loss])
-            print(f'Epoch {epoch}/{num_epochs - 1}: '
-                  f'Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f}, '
-                  f'Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f}')
+            for epoch in range(NUM_EPOCHS):
+                # Each epoch has a training and validation phase
+                train_loss, train_acc = train_epoch(model, train_dataloader, criterion, optimizer, device)
+                scheduler.step()
+                val_loss, val_acc = validate_epoch(model, val_dataloader, criterion, device)
 
-            # Deep copy the model
-            if val_acc > best_acc:
-                best_acc = val_acc
-                torch.save(model.state_dict(), best_model_params_path)
+                # Cache metrics for later comparison
+                history.append([train_acc, val_acc, train_loss, val_loss])
+                print(f'Epoch {epoch}/{NUM_EPOCHS - 1}: '
+                    f'Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f}, '
+                    f'Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f}')
 
-        time_elapsed = time.time() - since
-        print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-        print(f'Best Val Acc: {best_acc:.4f}')
+                # Deep copy the model
+                if val_acc > best_acc:
+                    best_acc = val_acc
+                    torch.save(model.state_dict(), best_model_params_path)
 
-        # Load best model weights
-        model.load_state_dict(torch.load(best_model_params_path))
+            time_elapsed = time.time() - since
+            print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+            print(f'Best Val Acc: {best_acc:.4f}')
 
-        # upload model to s3
-        model_path = f'{project.prefix}/{model_db.name}.pth'
-        s3.upload_file(best_model_params_path, project.bucket, model_path)
-        
-        # save model to db
-        model_db.saved = model_path
-        db.session.commit()
-        print('model saved to', model_path)
+            # Load best model weights
+            model.load_state_dict(torch.load(best_model_params_path))
 
-    return model, history
+            # upload model to s3
+            model_path = f'{project.prefix}/{model_db.name}.pth'
+            s3.upload_file(best_model_params_path, project.bucket, model_path)
+            
+            print(model_db)
+            # save model to db
+            model_db.saved = model_path
+            db.session.add(model_db)
+            db.session.commit()
+            print('model saved to', model_path)
+
+        return model, history
 
 
 def compute_metrics(model, dataloader, device):
@@ -211,7 +215,7 @@ def run_training(app_context, project, dataset, model, NUM_EPOCHS, TRAIN_TEST_SP
         optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-        ml_model, model_history = train_model(ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, num_epochs=NUM_EPOCHS)
+        ml_model, model_history = train_model(app_context, ml_model, model, project, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
 
         accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 
@@ -233,9 +237,21 @@ def run_labelling_using_model(app_context, project, dataset, model):
     with app_context:
         # initialise model
         if model.name == 'resnet18':
-            ml_model = models.resnet18(weights='DEFAULT')
+            ml_model = torchvision.models.resnet18(weights='DEFAULT')
             num_ftrs = ml_model.fc.in_features
             ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        elif model.name == 'densenet121':
+            ml_model = torchvision.models.densenet121(weights='DEFAULT')
+            num_ftrs = ml_model.classifier.in_features
+            ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        elif model.name == 'alexnet':
+            ml_model = torchvision.models.alexnet(weights='DEFAULT')
+            num_ftrs = ml_model.classifier[6].in_features
+            ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        elif model.name == 'convnext_base':
+            ml_model = torchvision.models.convnext_base(weights='DEFAULT')
+            num_ftrs = ml_model.classifier[2].in_features
+            ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
 
         # load in weights
         model_weights = download_weights_from_s3(project.bucket, model.saved)
@@ -246,7 +262,7 @@ def run_labelling_using_model(app_context, project, dataset, model):
         df = get_dataframe(dataset.id, return_labelled=False)
 
         s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=False)
-        s3_dataset.transform = data_transforms['val']
+        s3_dataset.transform = data_transforms['image_val']
 
         dataloader = DataLoader(s3_dataset, batch_size=32, shuffle=True)
 
