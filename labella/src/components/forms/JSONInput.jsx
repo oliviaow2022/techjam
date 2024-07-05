@@ -1,6 +1,6 @@
 'use client';
 import React, {useState} from 'react';
-import TextArea from "./TextArea";
+import TextArea from "../TextArea";
 
 const JsonInput = ({label, name, onJsonChange}) => {
     const [jsonString, setJsonString] = useState('');

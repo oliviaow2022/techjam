@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from "react";
 import LabelButton from "@/components/LabelButton";
 import ImageSlider from "@/components/ImageSlider";
-import SideNav from "@/components/SideNav";
+import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import axios from "axios";
-import Navbar from "@/components/NavBar";
+import Navbar from "@/components/nav/NavBar";
 import { toast } from "react-hot-toast";
 
 export default function Label({ params }) {
@@ -95,7 +95,7 @@ export default function Label({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <SideNav params={params.projectId} />
+        <ImageClassificationSideNav params={params.projectId} />
         <div className="ml-0 lg:ml-20">
           <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">
             Image Classification

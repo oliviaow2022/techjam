@@ -2,8 +2,8 @@
 
 import axios from "axios";
 import { useState, useEffect } from "react";
-import Navbar from "@/components/NavBar";
-import SideNav from "@/components/SideNav";
+import Navbar from "@/components/nav/NavBar";
+import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import { toast } from 'react-hot-toast'
 
 export default function RunModel({ params }) {
@@ -45,7 +45,7 @@ export default function RunModel({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <SideNav params={params.projectId} />
+        <ImageClassificationSideNav params={params.projectId} />
         <div className="ml-0 lg:ml-20 mt-32">
           <p className="font-bold mb-2">Select Trained Model</p>
           {modelData.length === 0 && <p>No trained models found</p>}

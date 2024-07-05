@@ -1,24 +1,24 @@
-export default function SideNav({ params }) {
+export default function ClassificationImageClassificationSideNav({ params }) {
   const menuOptions = [
     {
       id: 0,
       name: "Label Data",
-      link: `/label/${params}`,
+      link: `/image-classification/${params}/label`,
     },
     {
       id: 1,
       name: "Train Model",
-      link: `/train-model/${params}`,
+      link: `/image-classification/${params}/train-model`,
     },
     {
       id: 2,
       name: "Model Performance",
-      link: `/statistics/${params}`,
+      link: `/image-classification/${params}/statistics`,
     },
     {
       id: 3,
       name: "Run Model",
-      link: `/run-model/${params}`,
+      link: `/image-classification/${params}/run-model`,
     },
   ];
   return (

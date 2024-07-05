@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
-import Navbar from "@/components/NavBar";
-import InputBox from "@/components/InputBox";
-import JsonInput from "@/components/JSONInput";
+import Navbar from "@/components/nav/NavBar";
+import InputBox from "@/components/forms/InputBox";
+import JsonInput from "@/components/forms/JSONInput";
 import RadioButton from "@/components/RadioButton";
+import FileInput from "@/components/forms/FileInput";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -126,7 +127,7 @@ export default function ImageClassification() {
           toast.success("Success");
         }
 
-        router.push(`/label/${createResponse.data.project.id}`);
+        router.push(`/image-classification/${createResponse.data.project.id}/label`);
         // Reset form or handle successful submission
       } catch (error) {
         console.error("Error submitting form:", error);
@@ -238,24 +239,11 @@ export default function ImageClassification() {
               onJsonChange={handleJsonChange}
             />
 
-            <div>
-              <label htmlFor="input-zip-file" className="block text-white my-1">
-                Upload Dataset
-              </label>
-              <input
-                type="file"
-                id="input-zip-file"
-                accept=".zip"
-                onChange={handleFileChange}
-              />
-              {errors.zipFile && (
-                <p className="text-red-500 text-sm">{errors.zipFile}</p>
-              )}
-            </div>
+            <FileInput label="Upload Dataset" handleFileChange={handleFileChange} error={errors.zipFile}/>
 
             <button
               type="submit"
-              className="flex my-4 p-2 bg-[#FF52BF] w-32 rounded-lg justify-center items-center cursor-pointer text-white"
+              className="flex my-4 py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
             >
               Create Project
             </button>

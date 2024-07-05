@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Navbar from "@/components/NavBar";
-import SideNav from "@/components/SideNav";
+import Navbar from "@/components/nav/NavBar";
+import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 
 const LINE_OFFSET = 6;
 const ANCHOR_SIZE = 2;
@@ -93,6 +93,7 @@ export default function ObjectDetection() {
     useEffect(() => {
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
+
       const image = new Image();
 
       image.src = image_path;
@@ -350,11 +351,11 @@ export default function ObjectDetection() {
       <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
         <Navbar />
         <div className="flex flex-row">
-          <SideNav params={1} />
+          <ImageClassificationSideNav params={1} />
           <div className="ml-0 mt-32 flex flex-row">
-            <div className="bg-[#3B3840] p-4">
+            <div className="p-4">
               <input
-                className="bg-[#3B3840] border-b border-b-[#3FEABF] mb-5"
+                className="bg-transparent mb-5"
                 type="text"
                 value={label}
                 onChange={handleLabelChange}
@@ -368,9 +369,10 @@ export default function ObjectDetection() {
               ))}
             </div>
             <canvas
+              height={500}
+              width={800}
               ref={canvasRef}
-              height={200}
-              className="border border-black w-full"
+              className="border border-black"
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}

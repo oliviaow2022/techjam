@@ -278,7 +278,7 @@ def run_labelling_using_model(app_context, project, dataset, model):
                 for index, instance_id in enumerate(data_instance_ids):
                     data_instance = DataInstance.query.get_or_404(instance_id.item(), description='DataInstance ID not found')
                     data_instance.entropy = entropy[index].item()
-                    data_instance.labels = predicted[index].item()
+                    # data_instance.labels = predicted[index].item()
                     db.session.commit()
                     instances_updated += 1
 
