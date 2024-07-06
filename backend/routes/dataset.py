@@ -41,6 +41,7 @@ def create_dataset():
     project_id = request.json.get('project_id')
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
+    project_type = request.json.get('project_type')
 
     num_classes, class_to_label_mapping = get_dataset_config(name, num_classes, class_to_label_mapping)
 
@@ -48,8 +49,7 @@ def create_dataset():
         return jsonify({"error": "Bad Request", "message": "Missing fields"}), 400
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
-
-    dataset = Dataset(name=name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping))
+    dataset = Dataset(name=name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping), project_type=project_type)
     db.session.add(dataset)
     db.session.commit()
 
