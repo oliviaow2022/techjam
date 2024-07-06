@@ -1,32 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
+
 import Navbar from "@/components/nav/NavBar";
-import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
+import SentimentAnalysisSideNav from "@/components/nav/ImageClassificationSideNav";
 import FileInput from "@/components/forms/FileInput";
 import CategoryInput from "@/components/forms/CategoryInput";
 import InputBox from "@/components/forms/InputBox";
-
-const modelData = [
-  "DeBERTa-v3-base-mnli-fever-anli",
-  "facebook/bart-large-mnli",
-];
+import axios from "axios";
 
 export default function SentimentAnalysis({ params }) {
+  const jwtToken = localStorage.getItem("jwt");
+  console.log(jwtToken);
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
-    selectedModel: null,
-    maxIterations: null,
-    numSamples: null,
+    projectName: "",
+    datasetName: "",
+    textColumn: "",
+    labelColumn: "",
   });
 
   const [errors, setErrors] = useState({});
-  const [zipFile, setZipFile] = useState(null);
+  const [textFile, setTextFile] = useState(null);
   const [categoryList, setCategoryList] = useState([]);
-  const [preprocessingSteps, setPreprocessingSteps] = useState([]);
 
   const handleFileChange = (e) => {
     console.log(e.target.files[0]);
-    setZipFile(e.target.files[0]);
+    setTextFile(e.target.files[0]);
   };
 
   const handleChange = (e) => {
@@ -39,31 +42,70 @@ export default function SentimentAnalysis({ params }) {
   };
 
   const handleSubmit = async () => {
-    e.preventDefault()
-    let validationErrors = validate()
-    setErrors(validationErrors)
-  }
+    e.preventDefault();
+    let validationErrors = validate();
+    setErrors(validationErrors);
+
+    
+
+    if (Object.keys(validationErrors).length === 0) {
+
+      let createEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
+      const class_to_label_mapping = categoryList.reduce((acc, item, index) => {
+        acc[index] = item;
+        return acc;
+      }, {})
+      console.log(class_to_label_mapping)
+      const createResponse = await axios.post(
+        createEndpoint,
+        {
+          project_name: formData.projectName,
+          num_classes: categoryList.length,
+          dataset_name: formData.datasetName,
+          project_type: "sentiment-analysis",
+          class_to_label_mapping: {}
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+
+      console.log(createResponse);
+
+      let uploadEndpoint =
+        process.env.NEXT_PUBLIC_API_ENDPOINT +
+        `/senti/${createResponse.data.dataset.id}/upload`;
+      const fileFormData = new FormData();
+      fileFormData.append("file", textFile);
+      fileFormData.append("text_column", formData.textColumn);
+      fileFormData.append("label_column", formData.labelColumn);
+
+      const uploadResponse = await axios.post(uploadEndpoint, fileFormData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (createResponse.status === 200 && uploadEndpoint.status === 200) {
+        toast.success("Success");
+      }
+    }
+  };
 
   const validate = () => {
     let errors = {};
 
-    if (!formData.selectedModel) {
-      errors.selectedModel = "Please select a model";
-    }
     if (!categoryList) {
       errors.categoryList = "Missing sentiment categories";
     }
-    if (!preprocessingSteps) {
-      errors.preprocessingSteps = "Missing preprocessing steps";
+    if (!textFile) {
+      errors.textFile = "Please select a file to upload.";
     }
-    if (!formData.maxIterations) {
-      errors.maxIterations = "Number of iterations is required";
-    }
-    if (!formData.numSamples) {
-      errors.numSamples = "Number of samples is required";
-    }
-    if (!zipFile) {
-      errors.zipFile = "Please select a file to upload.";
+    if (!formData.projectName) {
+      errors.projectName = "Project name is required";
     }
     return errors;
   };
@@ -72,76 +114,59 @@ export default function SentimentAnalysis({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <ImageClassificationSideNav params={params.projectId} />
+        <SentimentAnalysisSideNav params={params.projectId} />
         <form className="ml-0 lg:ml-20 mt-32">
           <p className="text-xl text-[#3FEABF] font-bold mb-8">
             Sentiment Analysis
           </p>
           <div className="flex flex-col gap-y-5">
-            <div>
-              <p className="font-bold mb-2">Select Zero-Shot Model</p>
-              {modelData.length === 0 && <p>No models found</p>}
-              <div className="grid lg:grid-cols-2 gap-x-6 gap-y-1">
-                {modelData.map((model, index) => (
-                  <div
-                    key={index}
-                    className={`flex flex-wrap border border-white border-opacity-50 w-72 items-center justify-center rounded-lg h-8 cursor-pointer mt-1 ${
-                      formData.selectedModel === model
-                        ? "bg-[#3FEABF] text-black"
-                        : "hover:bg-[#3FEABF] hover:text-black"
-                    }`}
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        selectedModel: model,
-                      });
-                    }}
-                  >
-                    {model}
-                  </div>
-                ))}
-              </div>
-              {errors.selectedModel && (
-                <p className="text-red-500 text-sm">{errors.selectedModel}</p>
-              )}
-            </div>
-            <FileInput 
-              label='Upload Dataset (CSV/XLSX only)'
-              handleFileChange={handleFileChange}
-              error={errors.zipFile}
+            <InputBox
+              label="Project Name"
+              name="projectName"
+              value={formData.projectName}
+              onChange={handleChange}
+              error={errors.projectName}
             />
-            <CategoryInput 
+            <p className="font-bold mt-2">Dataset</p>
+            <FileInput
+              label="Upload Dataset (CSV/XLSX only)"
+              handleFileChange={handleFileChange}
+              error={errors.textFile}
+              fileTypes=".csv, .txt"
+            />
+             <InputBox
+              label="Dataset Name"
+              name="datasetName"
+              value={formData.datasetName}
+              onChange={handleChange}
+              error={errors.datasetName}
+            />
+            <CategoryInput
               label="Sentiment Categories"
               categoryList={categoryList}
               setCategoryList={setCategoryList}
               error={errors.categories}
             />
-            <CategoryInput 
-              label="Preprocessing Steps"
-              categoryList={preprocessingSteps}
-              setCategoryList={setPreprocessingSteps}
-              error={errors.preprocessingSteps}
-            />
-            <InputBox 
-              label="Maximum Iterations of Active Learning"
-              name="maxIterations"
-              value={formData.maxIterations}
+            <InputBox
+              label="Text Column in Dataframe"
+              name="textColumn"
+              value={formData.textColumn}
               onChange={handleChange}
-              error={errors.maxIterations}
+              error={errors.textColumn}
             />
-            <InputBox 
-              label="Number of Samples for Manual Labelling"
-              name="numSamples"
-              value={formData.numSamples}
+            <InputBox
+              label="Label Column in Dataframe"
+              name="labelColumn"
+              value={formData.labelColumn}
               onChange={handleChange}
-              error={errors.numSamples}
+              error={errors.labelColumn}
             />
             <button
               type="submit"
               className="flex my-4 py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
               onClick={handleSubmit}
             >
-              Fine Tune Model
+              Create Project
             </button>
           </div>
         </form>

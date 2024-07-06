@@ -1,4 +1,4 @@
-const FileInput = ({label, error, handleFileChange}) => {
+const FileInput = ({label, error, handleFileChange, fileTypes}) => {
   return (
     <div>
       <label htmlFor="input-zip-file" className="block text-white my-1">
@@ -7,7 +7,7 @@ const FileInput = ({label, error, handleFileChange}) => {
       <input
         type="file"
         id="input-zip-file"
-        accept=".zip"
+        accept={fileTypes}
         onChange={handleFileChange}
       />
       {error && (

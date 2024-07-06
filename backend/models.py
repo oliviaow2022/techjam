@@ -52,7 +52,7 @@ class Project(db.Model):
 
 class Dataset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(128), nullable=True)
     num_classes = db.Column(db.Integer, nullable=False)
     class_to_label_mapping = db.Column(db.JSON, nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)

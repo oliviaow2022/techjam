@@ -44,6 +44,7 @@ export default function Label({ params }) {
     const fetchDataset = async () => {
       try {
         const datasetResponse = await axios.get(datasetApiEndpoint);
+        console.log(datasetResponse.data)
         setDatasetData(datasetResponse.data);
       } catch (error) {
         setError(error.message);
@@ -105,8 +106,8 @@ export default function Label({ params }) {
             {images && (
               <ImageSlider
                 images={images}
-                bucketname={"dltechjam"}
-                bucketprefix={"transfer-antsbees"}
+                bucketname={datasetData.project.bucket}
+                bucketprefix={datasetData.project.prefix}
                 handleImageChange={handleImageChange}
                 currentIndex={currentIndex}
                 setCurrentIndex={setCurrentIndex}
@@ -116,7 +117,7 @@ export default function Label({ params }) {
               <div className="bg-[#3B3840] rounded-lg w-96 p-4">
                 <p className="text-white font-bold mb-2">Class</p>
                 <div className="flex flex-wrap justify-between">
-                  {Object.entries(datasetData?.class_to_label_mapping).map(
+                  {Object.entries(datasetData?.dataset.class_to_label_mapping).map(
                     ([key, value]) => (
                       <LabelButton
                         key={key}
@@ -139,7 +140,7 @@ export default function Label({ params }) {
               return (
                 <div key={item.data} onClick={() => setCurrentIndex(index)}>
                   <img
-                    src={`https://dltechjam.s3.amazonaws.com/transfer-antsbees/${item.data}`}
+                    src={`https://${datasetData?.project.bucket}.s3.amazonaws.com/${datasetData?.project.prefix}/${item.data}`}
                     className={`w-20 h-20 rounded-lg ${
                       currentIndex === index ? "border-4 border-white" : ""
                     }`}

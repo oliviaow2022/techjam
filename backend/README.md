@@ -23,6 +23,7 @@ pip install flask-jwt-extended
 pip install Flask-Cors
 pip install python-dotenv
 pip install celery redis
+pip install git+https://github.com/modAL-python/modAL.git
 ```
 
 ### Running

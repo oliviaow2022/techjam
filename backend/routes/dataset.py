@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import db, Dataset, Project, DataInstance
+from models import db, Model, Dataset, Project, DataInstance
 import pandas as pd
 from flasgger import swag_from
 import json
@@ -112,6 +112,8 @@ def return_batch_for_labelling(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
+    print(dataset)
+
     if not dataset:
         return jsonify({'error': 'Dataset not found'}), 404
 
@@ -120,6 +122,7 @@ def return_batch_for_labelling(project_id):
         DataInstance.manually_processed == False
     ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
     data_list = [instance.to_dict() for instance in data_instances]
+    print(data_list)
     return jsonify(data_list), 200
 
 
@@ -151,7 +154,7 @@ def get_dataset(project_id):
     if not dataset:
         return jsonify({'error': 'Dataset not found'}), 404
     
-    return jsonify(dataset.to_dict()), 200
+    return jsonify({'dataset': dataset.to_dict(), 'project': project.to_dict()}), 200
 
 
 @dataset_routes.route('/<int:id>/upload', methods=['POST'])
@@ -222,7 +225,8 @@ def upload_files(id):
 
             local_filepath = os.path.join(root, file_name)
             unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file_name)[1]}"
-            s3_filepath = os.path.join(project.prefix, unique_filename)
+            # s3_filepath = os.path.join(project.prefix, unique_filename)
+            s3_filepath = f'{project.prefix}/{unique_filename}'
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)

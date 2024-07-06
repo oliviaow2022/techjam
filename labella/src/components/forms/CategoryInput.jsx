@@ -24,7 +24,7 @@ const CategoryInput = ({ label, categoryList, setCategoryList, error }) => {
 
   return (
     <div>
-      <label htmlFor="input-box" className="block text-white my-1">
+      <label htmlFor="category-box" className="block text-white my-1">
         {label}
       </label>
       <div className="flex flex-wrap gap-x-1">
@@ -44,6 +44,7 @@ const CategoryInput = ({ label, categoryList, setCategoryList, error }) => {
         ))}
         <input
           type="text"
+          id="category-box"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
