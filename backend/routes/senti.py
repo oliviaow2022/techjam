@@ -1,14 +1,17 @@
 from flask import Blueprint, request, jsonify
 from models import db, Model, Project, Dataset, DataInstance
-from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
-import threading
+from tempfile import TemporaryDirectory
+from services.dataset import get_dataframe
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from modAL.models import ActiveLearner
 from modAL.uncertainty import uncertainty_sampling
 import numpy as np
+import os
+import pickle
+from S3ImageDataset import s3
 
 senti_routes = Blueprint('senti', __name__)
 
@@ -16,8 +19,7 @@ global df, learner, vectorizer
 
 @senti_routes.route('<int:dataset_id>/upload', methods=['POST'])
 def upload_file(dataset_id):
-    text_column = request.json.get("text_column")
-    label_column = request.json.get("label_column")
+    text_column = request.form.get("text_column")
     file = request.files['file']
 
     if not all([file, text_column]):
@@ -41,33 +43,50 @@ def upload_file(dataset_id):
             data = row[text_column],
             dataset_id = dataset_id
         )
-        if label_column:
-            data_instance.labels = row[label_column]
-            data_instance.manually_processed = True
-        db.session.add(DataInstance)
+        db.session.add(data_instance)
         db.session.commit()
     return jsonify({"message": "File uploaded successfully"}), 200
 
 
-@senti_routes.route('/train', methods=['POST'])
-def train_model():
-    global df, learner, vectorizer
+@senti_routes.route('<int:project_id>/train', methods=['POST'])
+def train_model(project_id):
+
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+    model_db = Model.query.filter_by(project_id=project.id).first()
+    if not model_db:
+        model_db = Model(name="Logistic Regression", project_id=project.id)
+
+    if not dataset:
+       return jsonify({"error": "Dataset does not exist"}), 400
+    
+    df = get_dataframe(dataset.id, return_labelled=False)
 
     vectorizer = TfidfVectorizer(max_features=1000)
-    X = vectorizer.fit_transform(df['text']).toarray()
+    X_train = vectorizer.fit_transform(df['data']).toarray()
 
-    initial_idx = np.random.choice(range(X.shape[0]), size=10, replace=False)
-    initial_samples = X[initial_idx]
-    initial_labels = np.random.randint(0, 2, size=10)  
+    df['labels'] = df['labels'].fillna(df['labels'].apply(lambda x: np.random.randint(0, 3) if pd.isnull(x) else x))
+    y_train = np.array(df['labels'])
 
-    learner = ActiveLearner(
-        estimator=LogisticRegression(),
-        query_strategy=uncertainty_sampling,
-        X_training=initial_samples,
-        y_training=initial_labels
-    )
+    print(df.shape)
+    print(df.head())
 
-    return "Model trained successfully", 200
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
+
+    with TemporaryDirectory() as tempdir:
+        local_file_path = os.path.join(tempdir, {model_db.name}.pkl)
+        with open(local_file_path,'wb') as f:
+            pickle.dump(model,f)
+
+        model_path = f'{project.prefix}/{model_db.name}.pkl'
+        s3.upload_file(local_file_path, project.bucket, model_path)
+        model_db.saved = model_path
+        db.session.add(model_db)
+        db.session.commit()
+        print('model saved to', model_path)
+
+    return jsonify({"message": "Model trained successfully"}), 200
 
 
 @senti_routes.route('/query', methods=['GET'])
@@ -77,14 +96,3 @@ def query_model():
     X = vectorizer.transform(df['text']).toarray()
     query_idx, query_instance = learner.query(X, n_instances=5)
     return jsonify(query_idx.tolist())
-
-@senti_routes.route('<int:data_instance_id>/label', methods=['POST'])
-def label_data_instance(data_instance_id):
-    data_instance_id = request.json.get('data_instance_id')
-    label = request.json.get('label')
-
-    data_instance = DataInstance.query.get_or_404(data_instance_id, description="DataInstance ID not found")
-    data_instance.label = label
-    db.session.commit()
-
-    return jsonify({"message": "Label updated successfully", "data_instance": {"id": data_instance.id, "label": data_instance.label}})

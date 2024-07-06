@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
@@ -12,20 +12,22 @@ import InputBox from "@/components/forms/InputBox";
 import axios from "axios";
 
 export default function SentimentAnalysis({ params }) {
-  const jwtToken = localStorage.getItem("jwt");
-  console.log(jwtToken);
+
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    projectName: "",
-    datasetName: "",
-    textColumn: "",
-    labelColumn: "",
+    projectName: "test-senti",
+    datasetName: "test-senti",
+    textColumn: "Text",
   });
 
   const [errors, setErrors] = useState({});
   const [textFile, setTextFile] = useState(null);
-  const [categoryList, setCategoryList] = useState([]);
+  const [categoryList, setCategoryList] = useState([
+    "positive",
+    "negative",
+    "neutral",
+  ]);
 
   const handleFileChange = (e) => {
     console.log(e.target.files[0]);
@@ -41,56 +43,61 @@ export default function SentimentAnalysis({ params }) {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     let validationErrors = validate();
     setErrors(validationErrors);
 
-    
-
     if (Object.keys(validationErrors).length === 0) {
+      try {
+        const createEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
 
-      let createEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
-      const class_to_label_mapping = categoryList.reduce((acc, item, index) => {
-        acc[index] = item;
-        return acc;
-      }, {})
-      console.log(class_to_label_mapping)
-      const createResponse = await axios.post(
-        createEndpoint,
-        {
+        const payload = {
           project_name: formData.projectName,
           num_classes: categoryList.length,
           dataset_name: formData.datasetName,
           project_type: "sentiment-analysis",
-          class_to_label_mapping: {}
-        },
-        {
+          class_to_label_mapping: JSON.stringify(
+            categoryList.reduce((acc, item, index) => {
+              acc[index] = item;
+              return acc;
+            }, {})
+          ),
+        };
+        console.log(payload);
+
+        const jwtToken = localStorage.getItem("jwt");
+        console.log("Token from localStorage:", jwtToken);
+
+        const createResponse = await axios.post(createEndpoint, payload, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${jwtToken}`,
           },
+        });
+
+        console.log(createResponse);
+
+        let uploadEndpoint =
+          process.env.NEXT_PUBLIC_API_ENDPOINT +
+          `/senti/${createResponse.data.dataset.id}/upload`;
+        const fileFormData = new FormData();
+        fileFormData.append("file", textFile);
+        fileFormData.append("text_column", formData.textColumn);
+
+        const uploadResponse = await axios.post(uploadEndpoint, fileFormData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        console.log(uploadResponse)
+
+        if (createResponse.status === 200 && uploadEndpoint.status === 200) {
+          toast.success("Success");
         }
-      );
-
-      console.log(createResponse);
-
-      let uploadEndpoint =
-        process.env.NEXT_PUBLIC_API_ENDPOINT +
-        `/senti/${createResponse.data.dataset.id}/upload`;
-      const fileFormData = new FormData();
-      fileFormData.append("file", textFile);
-      fileFormData.append("text_column", formData.textColumn);
-      fileFormData.append("label_column", formData.labelColumn);
-
-      const uploadResponse = await axios.post(uploadEndpoint, fileFormData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (createResponse.status === 200 && uploadEndpoint.status === 200) {
-        toast.success("Success");
+      } catch (error) {
+        console.log(error);
       }
     }
   };
@@ -114,8 +121,7 @@ export default function SentimentAnalysis({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <SentimentAnalysisSideNav params={params.projectId} />
-        <form className="ml-0 lg:ml-20 mt-32">
+        <form className="ml-0 lg:ml-20 mt-32" onSubmit={handleSubmit}>
           <p className="text-xl text-[#3FEABF] font-bold mb-8">
             Sentiment Analysis
           </p>
@@ -127,14 +133,14 @@ export default function SentimentAnalysis({ params }) {
               onChange={handleChange}
               error={errors.projectName}
             />
-            <p className="font-bold mt-2">Dataset</p>
+
             <FileInput
               label="Upload Dataset (CSV/XLSX only)"
               handleFileChange={handleFileChange}
               error={errors.textFile}
               fileTypes=".csv, .txt"
             />
-             <InputBox
+            <InputBox
               label="Dataset Name"
               name="datasetName"
               value={formData.datasetName}
@@ -154,17 +160,10 @@ export default function SentimentAnalysis({ params }) {
               onChange={handleChange}
               error={errors.textColumn}
             />
-            <InputBox
-              label="Label Column in Dataframe"
-              name="labelColumn"
-              value={formData.labelColumn}
-              onChange={handleChange}
-              error={errors.labelColumn}
-            />
+
             <button
               type="submit"
               className="flex my-4 py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
-              onClick={handleSubmit}
             >
               Create Project
             </button>
