@@ -44,6 +44,7 @@ class Project(db.Model):
             "user_id": self.user_id,
             "type": self.type,
             "prefix": self.prefix,
+            "bucket": self.bucket
         }
 
     def __repr__(self):

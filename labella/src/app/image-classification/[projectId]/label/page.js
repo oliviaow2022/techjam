@@ -131,8 +131,7 @@ export default function Label({ params }) {
     }
     return data;
   };
-  const parsedClassToLabelMapping = parseJsonIfNeeded(datasetData?.class_to_label_mapping)  
-
+  const parsedClassToLabelMapping = parseJsonIfNeeded(datasetData?.dataset?.class_to_label_mapping)  
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
@@ -155,7 +154,7 @@ export default function Label({ params }) {
               />
             )}
             <div className="flex flex-col gap-y-4">
-              {datasetData?.project_type === "Multilabel Classification" ?  (<div className="bg-[#3B3840] rounded-lg w-96 p-4">
+              {datasetData?.dataset.project_type === "Multilabel Classification" ?  (<div className="bg-[#3B3840] rounded-lg w-96 p-4">
                   {Object.entries(parsedClassToLabelMapping).map(([category, label], categoryIndex) => {
                     return (
                       <div>
