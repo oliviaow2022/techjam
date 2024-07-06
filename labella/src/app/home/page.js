@@ -51,7 +51,7 @@ export default function Home() {
         )}
         <p className="text-white font-bold mb-2">Create a new project</p>
         <div className="flex gap-8">
-          <Link href="/sentiment-analysis">
+          <Link href="/sentiment-analysis/create">
             <div className="bg-[#3FEABF] h-56 w-64 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
               <Image
                 src="/sentiment analysis.png"

@@ -40,7 +40,7 @@ general_routes = Blueprint('general', __name__)
                     },
                     'model_name': {'type': 'string', 'description': 'Name of the model', 'example': 'resnet18'}
                 },
-                'required': ['project_name', 'user_id', 'dataset_name', 'num_classes', 'class_to_label_mapping', 'model_name']
+                'required': ['project_name', 'num_classes', 'class_to_label_mapping', 'model_name']
             }
         }
     ]
@@ -59,7 +59,7 @@ def create_project_dataset():
     num_classes, class_to_label_mapping, s3_prefix = get_dataset_config(project_name, num_classes, class_to_label_mapping, s3_prefix)
 
     # Validate input
-    if not all([project_name, project_type, user_id, dataset_name, num_classes, class_to_label_mapping]):
+    if not all([project_name, project_type, user_id, num_classes, class_to_label_mapping]):
         return jsonify({"error": "Bad Request", "message": "Missing required fields"}), 400
 
     user = User.query.get_or_404(user_id, description="User ID not found")
@@ -67,7 +67,9 @@ def create_project_dataset():
     db.session.add(project)
     db.session.commit()
 
-    dataset = Dataset(name=dataset_name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping))
+    dataset = Dataset(project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping))
+    if dataset_name:
+        dataset.name = dataset_name
     db.session.add(dataset)
     db.session.commit()
 

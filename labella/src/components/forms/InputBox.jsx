@@ -5,9 +5,9 @@ const InputBox = ({label, name, value, onChange, error}) => {
 
     return(
         <div>
-            <label htmlFor="input-box" className='block text-white my-1'>{label}</label>
+            <label htmlFor={`input-box-${name}`} className='block text-white my-1'>{label}</label>
             <input 
-                id={name}
+                id={`input-box-${name}`}
                 name={name}
                 type="type" 
                 value={value}

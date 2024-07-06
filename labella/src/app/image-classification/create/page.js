@@ -1,17 +1,17 @@
 "use client";
 import { useState } from "react";
+import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
+
 import Navbar from "@/components/nav/NavBar";
 import InputBox from "@/components/forms/InputBox";
 import JsonInput from "@/components/forms/JSONInput";
 import RadioButton from "@/components/RadioButton";
 import FileInput from "@/components/forms/FileInput";
 import axios from "axios";
-import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
 
 export default function ImageClassification() {
   const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
-  const userId = localStorage.getItem("user_id");
   const jwtToken = localStorage.getItem("jwt");
   console.log(jwtToken)
 
@@ -42,7 +42,6 @@ export default function ImageClassification() {
   const [formData, setFormData] = useState({
     projectName: "",
     projectType: "image-classification",
-    userId: userId,
     datasetName: "",
     numClasses: "",
     s3_prefix: "my-prefix/",
@@ -239,7 +238,7 @@ export default function ImageClassification() {
               onJsonChange={handleJsonChange}
             />
 
-            <FileInput label="Upload Dataset" handleFileChange={handleFileChange} error={errors.zipFile}/>
+            <FileInput label="Upload Dataset" handleFileChange={handleFileChange} error={errors.zipFile} fileTypes={".zip"}/>
 
             <button
               type="submit"

@@ -1,24 +1,19 @@
-export default function ImageClassificationSideNav({ params }) {
+export default function SentimentAnalysisSideNav({ params }) {
   const menuOptions = [
     {
       id: 0,
       name: "Label Data",
-      link: `/image-classification/${params}/label`,
+      link: `/sentiment-analysis/${params}/label`,
     },
     {
       id: 1,
       name: "Train Model",
-      link: `/image-classification/${params}/train-model`,
+      link: `/sentiment-analysis/${params}/train-model`,
     },
     {
       id: 2,
-      name: "Model Performance",
-      link: `/image-classification/${params}/statistics`,
-    },
-    {
-      id: 3,
-      name: "Run Model",
-      link: `/image-classification/${params}/run-model`,
+      name: "Download Model",
+      link: `/sentiment-analysis/${params}/download`,
     },
   ];
   return (
@@ -27,7 +22,7 @@ export default function ImageClassificationSideNav({ params }) {
         {menuOptions.map((option, index) => (
           <p
             key={index}
-            className="hover:cursor-pointer hover:text-[#FF52BF] text-white"
+            className="hover:cursor-pointer hover:text-[#3FEABF] text-white"
           >
             <a href={option.link}>{option.name}</a>
           </p>

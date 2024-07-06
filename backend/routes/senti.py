@@ -10,19 +10,46 @@ from modAL.models import ActiveLearner
 from modAL.uncertainty import uncertainty_sampling
 import numpy as np
 
-model_routes = Blueprint('model', __name__)
+senti_routes = Blueprint('senti', __name__)
 
 global df, learner, vectorizer
 
-@model_routes.route('/upload', methods=['POST'])
-def upload_file():
+@senti_routes.route('<int:dataset_id>/upload', methods=['POST'])
+def upload_file(dataset_id):
+    text_column = request.json.get("text_column")
+    label_column = request.json.get("label_column")
     file = request.files['file']
-    if file:
-        df = pd.read_csv(file)
-        return "File uploaded successfully", 200
-    return "Failed to upload file", 400
 
-@model_routes.route('/train', methods=['POST'])
+    if not all([file, text_column]):
+        return jsonify({"error": "Missing fields required"}), 400
+    
+    # Ensure the file is either a CSV or a TXT
+    filename, file_extension = os.path.splitext(file.filename)
+    if file_extension.lower() not in ['.csv', '.txt']:
+        return jsonify({"error": "Invalid file type. Only CSV and TXT files are allowed."}), 400
+
+    # Read the file based on its extension
+    if file_extension.lower() == '.csv':
+        df = pd.read_csv(file)
+    elif file_extension.lower() == '.txt':
+        df = pd.read_csv(file, delimiter="\t")
+
+    print(df)
+
+    for index, row in df.iterrows():
+        data_instance = DataInstance(
+            data = row[text_column],
+            dataset_id = dataset_id
+        )
+        if label_column:
+            data_instance.labels = row[label_column]
+            data_instance.manually_processed = True
+        db.session.add(DataInstance)
+        db.session.commit()
+    return jsonify({"message": "File uploaded successfully"}), 200
+
+
+@senti_routes.route('/train', methods=['POST'])
 def train_model():
     global df, learner, vectorizer
 
@@ -42,7 +69,8 @@ def train_model():
 
     return "Model trained successfully", 200
 
-@model_routes.route('/query', methods=['GET'])
+
+@senti_routes.route('/query', methods=['GET'])
 def query_model():
     global df, learner, vectorizer
 
@@ -50,8 +78,8 @@ def query_model():
     query_idx, query_instance = learner.query(X, n_instances=5)
     return jsonify(query_idx.tolist())
 
-@model_routes.route('/label', methods=['POST'])
-def label_data_instance():
+@senti_routes.route('<int:data_instance_id>/label', methods=['POST'])
+def label_data_instance(data_instance_id):
     data_instance_id = request.json.get('data_instance_id')
     label = request.json.get('label')
 
