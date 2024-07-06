@@ -1,8 +1,12 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from models import db, Model, Project, Dataset
 from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
 import threading
+from S3ImageDataset import s3
+from tempfile import TemporaryDirectory
+from botocore.exceptions import ClientError
+import os
 
 model_routes = Blueprint('model', __name__)
 
@@ -151,3 +155,34 @@ def get_all_models():
     models = Model.query.all()
     model_list = [model.to_dict() for model in models]
     return jsonify(model_list), 200
+
+
+@model_routes.route('<int:model_id>/download', methods=['GET'])
+def download_model(model_id):
+    model_db = Model.query.get_or_404(model_id, description="Model ID not found")
+    project_db = Project.query.get_or_404(model_db.project_id, description="Project ID not found")
+
+    if not model_db.saved:
+        return jsonify({'Message': 'Model file not found'}), 404 
+
+    try:
+        with TemporaryDirectory() as temp_dir:
+
+            file_name = os.path.basename(model_db.saved)
+            print(file_name)
+            local_file_path = os.path.join(temp_dir, file_name)
+
+            print(model_db.saved)
+            print(local_file_path)
+
+            s3.download_file(project_db.bucket, model_db.saved, local_file_path)
+            if os.path.exists(local_file_path):
+                return send_file(local_file_path, as_attachment=True)
+            else:
+                return jsonify({"error": "Downloaded file not found"}), 404
+        
+    except ClientError as e:
+        return jsonify({"error": f"Error downloading file from S3: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        
