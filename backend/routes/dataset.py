@@ -108,7 +108,6 @@ def return_batch_for_labelling(project_id):
 
     if not batch_size:
         batch_size = 20
-
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
@@ -241,3 +240,24 @@ def upload_files(id):
     db.session.commit()
 
     return jsonify({'message': 'Files successfully uploaded into dataset'}), 201
+
+
+@dataset_routes.route('/update_class_to_label_mapping/<int:dataset_id>', methods=['PUT'])
+def update_class_to_label_mapping(dataset_id):
+    data = request.get_json()
+    class_to_label_mapping = data.get('class_to_label_mapping')
+
+    if class_to_label_mapping is None:
+        return jsonify({"error": "class_to_label_mapping is required"}), 400
+
+    dataset = Dataset.query.get(dataset_id)
+    if dataset is None:
+        return jsonify({"error": "Dataset not found"}), 404
+
+    try:
+        dataset.class_to_label_mapping = class_to_label_mapping
+        db.session.commit()
+        return jsonify(dataset.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

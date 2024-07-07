@@ -14,12 +14,7 @@ export default function ImageClassificationSideNav({ params }) {
       id: 2,
       name: "Model Performance",
       link: `/image-classification/${params}/statistics`,
-    },
-    {
-      id: 3,
-      name: "Run Model",
-      link: `/image-classification/${params}/run-model`,
-    },
+    }
   ];
   return (
     <>

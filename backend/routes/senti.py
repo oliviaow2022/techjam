@@ -83,7 +83,7 @@ def train_model(project_id):
     print(X_train)
     print(y_train)
 
-    if model_name == "SVC":
+    if model_name == "Support Vector Classifier":
         model = SVC(kernel='linear', probability=True)
 
     # train the estimator model 
@@ -132,6 +132,11 @@ def query_model(project_id):
 
     if not model_db:
         return jsonify({"error": "No trained model found"}), 400
+
+    if not model_db.saved:
+        data_instances =  DataInstance.query.filter_by(dataset_id=dataset.id, manually_processed=False).limit(batch_size).all()
+        data_list = [instance.to_dict() for instance in data_instances]
+        return jsonify(data_list), 200
 
     # load saved model from s3
     response = s3.get_object(Bucket=project.bucket, Key=f'{project.prefix}/{model_db.name}.pkl')
