@@ -26,7 +26,7 @@ export default function Label({ params }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-
+  const [multilabelslist, setMultilabelslist] = useState([]);
   const fetchBatch = async () => {
     try {
       const batchResponse = await axios.post(batchApiEndpoint, {});
@@ -44,7 +44,6 @@ export default function Label({ params }) {
     const fetchDataset = async () => {
       try {
         const datasetResponse = await axios.get(datasetApiEndpoint);
-        console.log(datasetResponse.data)
         setDatasetData(datasetResponse.data);
       } catch (error) {
         setError(error.message);
@@ -75,7 +74,7 @@ export default function Label({ params }) {
     setCurrentIndex(idx);
   };
 
-  const handleLabelAddition = async (classInteger) => {
+  const handleLabelAdditionSingle = async (classInteger) => {
     let apiEndpoint =
       process.env.NEXT_PUBLIC_API_ENDPOINT +
       `/instance/${images[currentIndex].id}/set_label`;
@@ -91,7 +90,47 @@ export default function Label({ params }) {
       console.log(err);
     }
   };
+  
 
+  const handleLabelAdditionMulti = async (classInteger) => {
+    const list = classInteger.split("_")
+    const categoryIndex = list[0]
+    const categoryInteger = list[1]
+    const templist = [...multilabelslist]
+    templist[categoryIndex] = categoryInteger
+    setMultilabelslist(templist)
+    const formattedClassInteger = templist.join(',');
+    
+    if (/^\d+(,\d+)*$/.test(formattedClassInteger)) {
+      // Send updated labels to the backend
+      let apiEndpoint =
+        process.env.NEXT_PUBLIC_API_ENDPOINT +
+        `/instance/${images[currentIndex].id}/set_label`;
+      try {
+        const response = await axios.post(apiEndpoint, {
+          labels: formattedClassInteger,
+        });
+        if (response.status === 200) {
+          toast.success("Labels updated");
+        }
+      } catch (err) {
+        console.error('Error updating labels:', err);
+      }
+    }
+  }
+
+  const parseJsonIfNeeded = (data) => {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        console.error('Failed to parse JSON string:', error);
+        return {};
+      }
+    }
+    return data;
+  };
+  const parsedClassToLabelMapping = parseJsonIfNeeded(datasetData?.dataset?.class_to_label_mapping)  
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
@@ -114,21 +153,38 @@ export default function Label({ params }) {
               />
             )}
             <div className="flex flex-col gap-y-4">
-              <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+              {datasetData?.dataset.project_type === "Multilabel Classification" ?  (<div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                  {Object.entries(parsedClassToLabelMapping).map(([category, label], categoryIndex) => {
+                    return (
+                      <div>
+                        <p className="text-white font-bold mb-2">{category}</p>
+                        <div className="flex flex-wrap gap-4">
+                          {Object.entries(label).map(([key, value]) => (
+                            <LabelButton
+                              key={key}
+                              classInteger={`${categoryIndex}_${key}`}
+                              name={value}
+                              handleOptionChange={handleLabelAdditionMulti}
+                            />
+                          ))}
+                        </div>
+                      </div>)
+                  })}
+                </div>) : (<div className="bg-[#3B3840] rounded-lg w-96 p-4">
                 <p className="text-white font-bold mb-2">Class</p>
-                <div className="flex flex-wrap justify-between">
-                  {Object.entries(datasetData?.dataset.class_to_label_mapping).map(
+                <div className="flex flex-wrap gap-4">
+                  {Object.entries(parsedClassToLabelMapping).map(
                     ([key, value]) => (
                       <LabelButton
                         key={key}
                         classInteger={key}
                         name={value}
-                        handleOptionChange={handleLabelAddition}
+                        handleOptionChange={handleLabelAdditionSingle}
                       />
                     )
                   )}
                 </div>
-              </div>
+              </div>)}
               <div className="bg-[#3B3840] rounded-lg w-96 p-4">
                 <p className="text-white font-bold mb-2">Entropy</p>
                 <p>{images[currentIndex]?.entropy}</p>

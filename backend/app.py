@@ -62,8 +62,8 @@ def seed():
     db.session.add(user)
     db.session.commit()
 
-    ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="1")
-    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="1")
+    ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="Single Label Classification")
+    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="Single Label Classification")
     cifar10 = Project(name="Cifar-10", user_id=user.id, type="1")
     db.session.add_all([ants_bees, fashion_mnist, cifar10])
     db.session.commit()

@@ -44,6 +44,7 @@ class Project(db.Model):
             "user_id": self.user_id,
             "type": self.type,
             "prefix": self.prefix,
+            "bucket": self.bucket
         }
 
     def __repr__(self):
@@ -59,12 +60,14 @@ class Dataset(db.Model):
     data_instances = db.relationship('DataInstance', backref='dataset', lazy=True)
 
     def to_dict(self):
+        project_type = Project.query.filter_by(id=self.project_id).first().type
         return {
             "id": self.id,
             "name": self.name,
             "project_id": self.project_id,
             "num_classes": self.num_classes,
-            "class_to_label_mapping": self.class_to_label_mapping
+            "class_to_label_mapping": self.class_to_label_mapping,
+            "project_type": project_type
         }
 
     def __repr__(self):
