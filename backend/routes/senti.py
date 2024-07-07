@@ -13,6 +13,7 @@ import os
 import pickle
 from S3ImageDataset import s3
 
+
 senti_routes = Blueprint('senti', __name__)
 
 global df, learner, vectorizer
@@ -45,6 +46,8 @@ def upload_file(dataset_id):
         )
         db.session.add(data_instance)
         db.session.commit()
+
+        
     return jsonify({"message": "File uploaded successfully"}), 200
 
 
@@ -75,7 +78,7 @@ def train_model(project_id):
     model.fit(X_train, y_train)
 
     with TemporaryDirectory() as tempdir:
-        local_file_path = os.path.join(tempdir, {model_db.name}.pkl)
+        local_file_path = os.path.join(tempdir, f"{model_db.name}.pkl")
         with open(local_file_path,'wb') as f:
             pickle.dump(model,f)
 
