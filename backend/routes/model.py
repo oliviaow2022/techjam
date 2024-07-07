@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, send_file
 from models import db, Model, Project, Dataset
-from services.model import run_training, run_labelling_using_model
+from services.model import run_training, run_labelling_with_model
 from flasgger import swag_from
 import threading
 from S3ImageDataset import s3
@@ -133,6 +133,7 @@ def run_model(id):
     print('running model...')
 
     model = Model.query.get_or_404(id, description="Model ID not found")
+    dataset_details = Dataset.query.get_or_404(model.project_id, description="Dataset not found")
     project = Project.query.get_or_404(model.project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
@@ -143,7 +144,7 @@ def run_model(id):
     from app import app
     app_context = app.app_context()
 
-    training_thread = threading.Thread(target=run_labelling_using_model, args=(app_context, project, dataset, model))
+    training_thread = threading.Thread(target=run_labelling_with_model, args=(app_context, dataset_details, dataset, project))
     training_thread.start()
 
     return jsonify({'message': 'Job started'}), 200

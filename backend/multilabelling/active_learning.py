@@ -11,6 +11,9 @@ import torchvision.models as models
 
 from PIL import Image
 import os
+# import boto3
+# import pandas as pd
+# from io import BytesIO
 
 class UnlabeledDataset(Dataset):
     def __init__(self, root, transform=None):
@@ -78,6 +81,7 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize
 ])
 
+print("hello")
 # Load dataset
 labelled_dataset = ImageFolder(root='C:/Users/natha/Documents/TikTokTechJam/multilabeldata/car/labelled', transform=transform)
 unlabelled_dataset = UnlabeledDataset(root='C:/Users/natha/Documents/TikTokTechJam/multilabeldata/car/unlabelled', transform=transform)
@@ -94,6 +98,7 @@ train_loader = DataLoader(labelled_dataset, sampler=train_sampler, batch_size=32
 unlabelled_loader = DataLoader(unlabelled_dataset, batch_size=32, shuffle=True)
 
 resnet50 = models.resnet50(pretrained=True)
+print("nihao")
 
 # Modify the final fully connected layer for multi-label classification
 num_features = resnet50.fc.in_features
@@ -128,8 +133,8 @@ learner = ActiveLearner(
 
 # Number of queries
 n_queries = 10
-
-def train_model(model, criterion, optimizer, train_loader, num_epochs=1):
+print(n_queries)
+def train_model(model, criterion, optimizer, train_loader, num_epochs=10):
     model.train()
     total = 0
     correct= 0
@@ -151,7 +156,10 @@ def train_model(model, criterion, optimizer, train_loader, num_epochs=1):
         print(f"Epoch {epoch + 1}, Loss: {running_loss / len(train_loader)}")
         print(f"Accuracy: {accuracy}")
 
-trained_model = train_model(model, criterion, optimizer, train_loader)
+    return model
+
+# trained_model = train_model(model, criterion, optimizer, train_loader)
+# torch.save(trained_model.state_dict(), 'trained_model.pth')
 
 # Perform active learning loop
 for i in range(n_queries):
@@ -179,7 +187,7 @@ for i in range(n_queries):
     unlabeled_loader = DataLoader(unlabelled_dataset, sampler=SubsetRandomSampler(remaining_unlabeled_idx), batch_size=16)
 
     # Retrain the model with the expanded training set
-    train_model(trained_model, criterion, optimizer, train_loader)
+    trained_model = train_model(trained_model, criterion, optimizer, train_loader)
 
 # Evaluate the model
 def evaluate_model(model, data_loader):
@@ -202,6 +210,7 @@ def evaluate_model(model, data_loader):
             accuracy = correct / total
     return entropy, accuracy
 
-entropy, model_accuracy = evaluate_model(model, DataLoader(labelled_dataset, batch_size=32))
-print(f"Accuracy after active learning: {model_accuracy}")
-print(f"Entropy after active learning: {entropy}")
+# entropy, model_accuracy = evaluate_model(trained_model, DataLoader(labelled_dataset, batch_size=32))
+
+# print(f"Accuracy after active learning: {model_accuracy}")
+# print(f"Entropy after active learning: {entropy}")

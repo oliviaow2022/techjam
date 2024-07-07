@@ -64,6 +64,7 @@ export default function Register() {
                 }
             } catch (error) {
                 console.error('Error submitting form:', error);
+                console.log(response)
                 if (error.response.status == 409) {
                     setAlreadyCreated(true)
                 }

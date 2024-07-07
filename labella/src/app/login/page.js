@@ -58,7 +58,7 @@ export default function Login() {
                 }
             } catch (error) {
                 console.error('Error submitting form:', error);
-                if(error.response.status == 401){
+                if(error.response == 401){
                     setWrongPW(true)
                 }
             } finally {

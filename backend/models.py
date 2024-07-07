@@ -43,6 +43,7 @@ class Project(db.Model):
             "name": self.name,
             "user_id": self.user_id,
             "type": self.type,
+            "bucket": self.bucket,
             "prefix": self.prefix,
         }
 

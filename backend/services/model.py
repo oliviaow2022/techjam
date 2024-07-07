@@ -11,6 +11,21 @@ from torch.optim import lr_scheduler
 from services.dataset import get_dataframe
 from io import BytesIO
 
+import numpy as np
+from modAL.models import ActiveLearner
+from modAL.uncertainty import uncertainty_sampling
+
+import torch
+import torchvision.transforms as transforms
+from torchvision.datasets import ImageFolder
+from torch.utils.data import DataLoader, SubsetRandomSampler, Dataset, TensorDataset
+from torch import nn, optim
+import torchvision.models as models
+
+from PIL import Image
+import boto3
+from io import BytesIO
+
 data_transforms = {
     'image_train': torchvision.transforms.Compose([
         torchvision.transforms.RandomResizedCrop(224),
@@ -283,3 +298,173 @@ def run_labelling_using_model(app_context, project, dataset, model):
                     instances_updated += 1
 
         return instances_updated
+
+class UnlabeledDataset(Dataset):
+    def __init__(self, bucket_name, prefix, transform=None):
+        self.bucket_name = bucket_name
+        self.prefix = prefix
+        self.transform = transform
+        self.s3 = boto3.client('s3', aws_access_key_id="AKIA6GBMD5NHN6NOW77I", aws_secret_access_key="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")
+        self.images = self._get_image_keys()
+
+    def _get_image_keys(self):
+        """Retrieve the list of image keys (paths) from the S3 bucket."""
+        response = self.s3.list_objects_v2(Bucket=self.bucket_name, Prefix=self.prefix)
+        keys = [content['Key'] for content in response.get('Contents', [])]
+        return keys
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        img_key = self.images[idx]
+        response = self.s3.get_object(Bucket=self.bucket_name, Key=img_key)
+        image = Image.open(BytesIO(response['Body'].read())).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
+        return image
+
+
+class TorchModelWrapper:
+    def __init__(self, model, criterion, optimizer):
+        self.model = model
+        self.criterion = criterion
+        self.optimizer = optimizer
+
+    def fit(self, X, y, num_epochs=1):
+        self.model.train()
+        X = torch.stack([x for x in X])  # Convert to tensor
+        y = torch.tensor(y)  # Convert to tensor
+
+        if X.shape[1] == 1:
+            X = X.repeat(1, 3, 1, 1)
+            
+        dataset = TensorDataset(X, y)
+        loader = DataLoader(dataset, batch_size=32, shuffle=True)
+        
+        for epoch in range(num_epochs):
+            running_loss = 0.0
+            for images, labels in loader:
+                self.optimizer.zero_grad()
+                outputs = self.model(images)
+                loss = self.criterion(outputs, labels)
+                loss.backward()
+                self.optimizer.step()
+                running_loss += loss.item()
+            print(f"Epoch {epoch + 1}, Loss: {running_loss / len(loader)}")
+
+    def predict_proba(self, X):
+        self.model.eval()
+        # preds = []
+        # proba = []
+        tensors = []
+        with torch.no_grad():
+            if isinstance(X, list):
+                for x in X:
+                    if len(x.shape) == 4:
+                        x=x[0]
+                    # print("Edited x", x.shape)
+                    # # x=torch.unbind(x, dim=0)
+                    # # print("X edit", x)
+                    if len(x.shape)==3 and x.shape==torch.Size([3, 224, 224]):
+                        tensors.append(x)
+                # X = [x[0] for x in X if len(x.shape)==3 and x.shape==torch.Size([3, 224, 224])]
+                if tensors:
+                    X=torch.stack(tensors)
+                else:
+                    raise ValueError("No valid tensors found in the input list")
+            if len(X.shape) == 3:
+                X = X.unsqueeze(0)
+            outputs = self.model(X)
+
+            return outputs.cpu().numpy()
+
+
+# Set random seed for reproducibility
+np.random.seed(0)
+torch.manual_seed(0)
+
+# Define transform to resize and normalize images
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize to fixed size (e.g., 224x224)
+    transforms.ToTensor(),          # Convert to tensor
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize
+])
+
+def dataloader_to_tensor_list(dataloader):
+    x = []
+    ids = []
+    for images, data_instance_ids in dataloader:
+        # for img in images:
+        x.extend(images)
+        ids.extend(data_instance_ids)
+    return x, ids
+
+def run_labelling_with_model(app_context, dataset_details, dataset, project):
+    with app_context:
+        resnet50 = models.resnet50(pretrained=True)
+        print("nihao2")
+
+        # Modify the final fully connected layer for multi-label classification
+        num_features = resnet50.fc.in_features
+        resnet50.fc = nn.Sequential(
+            nn.Linear(num_features, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, dataset_details.num_classes),  # Adjust output size based on number of classes
+            nn.Sigmoid()  # Sigmoid activation for multi-label classification
+        )
+
+        # Freeze early layers if necessary (optional)
+        # for param in resnet50.parameters():
+        #     param.requires_grad = False
+
+        # Initialize the model, loss function, and optimizer
+        model = resnet50
+        criterion = nn.CrossEntropyLoss()  # Cross Entropy Loss for multi-label classification
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+        df = get_dataframe(dataset.id, return_labelled=False)
+
+        s3_dataset = S3ImageDataset(df, project.bucket, project.prefix, has_labels=False)
+        # print(s3_dataset)
+        # unlabelled_dataset = UnlabeledDataset(project.bucket, project.prefix, transform=transform)
+        s3_dataset.transform = transform
+
+        unlabelled_loader = DataLoader(s3_dataset, batch_size=32, shuffle=True)
+        # unlabelled_loader = DataLoader(unlabelled_dataset, batch_size=32, shuffle=True)
+
+        learner = ActiveLearner(
+            estimator=TorchModelWrapper(model, optimizer, criterion),
+            query_strategy=uncertainty_sampling
+        )
+
+        data_instances = []
+        for i in range(3):
+            print(i)
+            X_pool, ids = dataloader_to_tensor_list(unlabelled_loader)
+            query_idx, _ = learner.query(X_pool)
+            print(query_idx)
+        
+            # selected_instances = [ids[i] for i in query_idx]
+            instances_updated = 0
+
+            # Calculate confidence and entropy for selected instances
+            model.eval()
+            with torch.no_grad():
+                for idx in query_idx:
+                    image = X_pool[idx].unsqueeze(0)  # Add batch dimension
+                    output = model(image)
+                    confidence_levels = torch.nn.functional.softmax(output, dim=1)
+                    entropy = -torch.sum(confidence_levels * torch.log2(confidence_levels + 1e-10), dim=1)
+                    
+                for index, instance_id in enumerate(ids):
+                    data_instance = DataInstance.query.get_or_404(instance_id.item(), description='DataInstance ID not found')
+                    print(data_instance)
+                    data_instance.entropy = entropy[index].item()
+                    # data_instance.labels = predicted[index].item()
+                    db.session.commit()
+                    instances_updated += 1
+
+        return instances_updated
+
