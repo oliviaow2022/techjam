@@ -1,56 +1,51 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 
 import Navbar from "@/components/nav/NavBar";
 import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
-import CategoryInput from "@/components/forms/CategoryInput";
-import InputBox from "@/components/forms/InputBox";
+import axios from "axios";
 
 const modelData = [
-  "DeBERTa-v3-base-mnli-fever-anli",
-  "facebook/bart-large-mnli",
+  {
+    name: "Support Vector Classifier",
+    value: "SVC",
+  },
 ];
 
 export default function TrainModel({ params }) {
-  const [preprocessingSteps, setPreprocessingSteps] = useState([]);
   const [errors, setErrors] = useState({});
+  const [selectedModel, setSelectedModel] = useState(null);
 
-  const [formData, setFormData] = useState({
-    maxIterations: null,
-    numSamples: null,
-    selectedModel: null,
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     let validationErrors = validate();
     setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      let apiEndpoint =
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/train`;
+
+      try {
+        const response = await axios.post(apiEndpoint, {
+          model_name: selectedModel,
+        });
+        if (response.status === 200) {
+          toast.success("Job created")
+        }
+      } catch (error) {
+        toast.error("Error");
+        console.log(error);
+      }
+    }
   };
 
   const validate = () => {
     let errors = {};
 
-    if (!formData.selectedModel) {
+    if (!selectedModel) {
       errors.selectedModel = "Please select a model";
-    }
-    if (!preprocessingSteps) {
-      errors.preprocessingSteps = "Missing preprocessing steps";
-    }
-    if (!formData.maxIterations) {
-      errors.maxIterations = "Number of iterations is required";
-    }
-    if (!formData.numSamples) {
-      errors.numSamples = "Number of samples is required";
     }
     return errors;
   };
@@ -60,7 +55,7 @@ export default function TrainModel({ params }) {
       <Navbar />
       <div className="flex flex-row">
         <SentimentAnalysisSideNav params={params.projectId} />
-        <form className="ml-0 lg:ml-20 mt-32">
+        <form className="ml-0 lg:ml-20 mt-32" onSubmit={handleSubmit}>
           <p className="text-xl text-[#3FEABF] font-bold mb-8">
             Sentiment Analysis
           </p>
@@ -73,18 +68,15 @@ export default function TrainModel({ params }) {
                   <div
                     key={index}
                     className={`flex flex-wrap border border-white border-opacity-50 w-72 items-center justify-center rounded-lg h-8 cursor-pointer mt-1 ${
-                      formData.selectedModel === model
+                      selectedModel === model.value
                         ? "bg-[#3FEABF] text-black"
                         : "hover:bg-[#3FEABF] hover:text-black"
                     }`}
                     onClick={() => {
-                      setFormData({
-                        ...formData,
-                        selectedModel: model,
-                      });
+                      setSelectedModel(model.value);
                     }}
                   >
-                    {model}
+                    {model.name}
                   </div>
                 ))}
               </div>
@@ -92,30 +84,9 @@ export default function TrainModel({ params }) {
                 <p className="text-red-500 text-sm">{errors.selectedModel}</p>
               )}
             </div>
-            <CategoryInput
-              label="Preprocessing Steps"
-              categoryList={preprocessingSteps}
-              setCategoryList={setPreprocessingSteps}
-              error={errors.preprocessingSteps}
-            />
-            <InputBox
-              label="Maximum Iterations of Active Learning"
-              name="maxIterations"
-              value={formData.maxIterations}
-              onChange={handleChange}
-              error={errors.maxIterations}
-            />
-            <InputBox
-              label="Number of Samples for Manual Labelling"
-              name="numSamples"
-              value={formData.numSamples}
-              onChange={handleChange}
-              error={errors.numSamples}
-            />
             <button
               type="submit"
               className="flex my-4 py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
-              onClick={handleSubmit}
             >
               Train Model
             </button>

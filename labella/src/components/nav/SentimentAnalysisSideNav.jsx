@@ -9,12 +9,7 @@ export default function SentimentAnalysisSideNav({ params }) {
       id: 1,
       name: "Train Model",
       link: `/sentiment-analysis/${params}/train-model`,
-    },
-    {
-      id: 2,
-      name: "Download Model",
-      link: `/sentiment-analysis/${params}/download`,
-    },
+    }
   ];
   return (
     <>

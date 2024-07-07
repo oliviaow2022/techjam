@@ -44,7 +44,6 @@ export default function Label({ params }) {
     const fetchDataset = async () => {
       try {
         const datasetResponse = await axios.get(datasetApiEndpoint);
-        console.log(datasetResponse.data)
         setDatasetData(datasetResponse.data);
       } catch (error) {
         setError(error.message);
