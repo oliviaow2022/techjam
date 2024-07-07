@@ -9,9 +9,17 @@ import axios from "axios";
 
 const modelData = [
   {
-    name: "Support Vector Classifier",
-    value: "SVC",
+    model_name: "Support Vector Classifier",
+    model_description: "Constructs a hyperplane or set of hyperplanes in a high-dimensional space to separate different classes in the data.",
   },
+  {
+    model_name: "Logistic Regression",
+    model_description: "Statistical method which models the probability of each sentiment class using a sigmoid function.",
+  },
+  {
+    model_name: "DBSCAN",
+    model_description: "Groups together points that are close to each other based on a distance measure (e.g., cosine similarity for text data)."
+  }
 ];
 
 export default function TrainModel({ params }) {
@@ -28,9 +36,7 @@ export default function TrainModel({ params }) {
         process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/train`;
 
       try {
-        const response = await axios.post(apiEndpoint, {
-          model_name: selectedModel,
-        });
+        const response = await axios.post(apiEndpoint, selectedModel);
         if (response.status === 200) {
           toast.success("Job created")
         }
@@ -61,22 +67,23 @@ export default function TrainModel({ params }) {
           </p>
           <div className="flex flex-col gap-y-5">
             <div>
-              <p className="mb-2">Select Zero-Shot Model</p>
+              <p className="mb-2">Select Model</p>
               {modelData.length === 0 && <p>No models found</p>}
-              <div className="grid lg:grid-cols-2 gap-x-6 gap-y-1">
+              <div className="flex flex-row flex-wrap gap-x-4 gap-y-1">
                 {modelData.map((model, index) => (
                   <div
                     key={index}
-                    className={`flex flex-wrap border border-white border-opacity-50 w-72 items-center justify-center rounded-lg h-8 cursor-pointer mt-1 ${
-                      selectedModel === model.value
+                    className={`flex flex-wrap border border-white border-opacity-50 w-72 rounded-lg cursor-pointer mt-1 p-4 ${
+                      selectedModel.name === model.name
                         ? "bg-[#3FEABF] text-black"
                         : "hover:bg-[#3FEABF] hover:text-black"
                     }`}
                     onClick={() => {
-                      setSelectedModel(model.value);
+                      setSelectedModel(model);
                     }}
                   >
-                    {model.name}
+                    <p className="font-bold mb-2">{model.name}</p>
+                    <p>{model.description}</p>
                   </div>
                 ))}
               </div>

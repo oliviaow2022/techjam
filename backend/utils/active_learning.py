@@ -91,7 +91,7 @@ val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
 import torch
 import torchvision.models as models
 
-model_conv = models.convnext_base(weights='DEFAULT')
+model_conv = models.ConvNext Base(weights='DEFAULT')
 for param in model_conv.parameters(): param.requires_grad = False
 model_conv.classifier[2] = torch.nn.Linear(
     in_features=model_conv.classifier[2].in_features,

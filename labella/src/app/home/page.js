@@ -39,10 +39,11 @@ export default function Home() {
             <div className="flex gap-8">
               {userProjects.map((project) => (
                 <div
-                  className="bg-white h-56 w-64 rounded-xl flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100 text-black"
+                  className="border border-white h-56 w-64 rounded-xl flex flex-col justify-between cursor-pointer hover:bg-white hover:text-black p-5"
                   onClick={() => router.push(`/image-classification/${project.id}/label`)}
                 >
                   <p>{project.name}</p>
+                  {project.type === "Single Label Classification" && <div className="flex flex-row items-center"><div className="w-3 h-3 rounded-lg bg-[#FF52BF] mr-2" />Image Classification</div>}
                 </div>
               ))}
             </div>

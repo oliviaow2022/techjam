@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
 import Navbar from "@/components/nav/NavBar";
-import SentimentAnalysisSideNav from "@/components/nav/ImageClassificationSideNav";
 import FileInput from "@/components/forms/FileInput";
 import CategoryInput from "@/components/forms/CategoryInput";
 import InputBox from "@/components/forms/InputBox";
 import axios from "axios";
 
-export default function SentimentAnalysis({ params }) {
-
+export default function SentimentAnalysis() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -57,12 +55,10 @@ export default function SentimentAnalysis({ params }) {
           num_classes: categoryList.length,
           dataset_name: formData.datasetName,
           project_type: "sentiment-analysis",
-          class_to_label_mapping: JSON.stringify(
-            categoryList.reduce((acc, item, index) => {
-              acc[index] = item;
-              return acc;
-            }, {})
-          ),
+          class_to_label_mapping: categoryList.reduce((acc, item, index) => {
+            acc[index] = item;
+            return acc;
+          }, {}),
         };
         console.log(payload);
 
@@ -91,10 +87,13 @@ export default function SentimentAnalysis({ params }) {
           },
         });
 
-        console.log(uploadResponse)
+        console.log(uploadResponse);
 
-        if (createResponse.status === 200 && uploadEndpoint.status === 200) {
+        if (createResponse.status === 201 && uploadEndpoint.status === 200) {
           toast.success("Success");
+          router.push(
+            `/sentiment-analysis/${createResponse.data.project.id}/label`
+          );
         }
       } catch (error) {
         console.log(error);

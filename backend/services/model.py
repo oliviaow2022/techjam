@@ -193,19 +193,19 @@ def run_training(app_context, project, dataset, model, NUM_EPOCHS, TRAIN_TEST_SP
         images, labels = next(dataiter)
         print(images.shape, labels.shape)
 
-        if model.name == 'resnet18':
+        if model.name == 'ResNet-18':
             ml_model = torchvision.models.resnet18(weights='DEFAULT')
             num_ftrs = ml_model.fc.in_features
             ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'densenet121':
+        elif model.name == 'DenseNet-121':
             ml_model = torchvision.models.densenet121(weights='DEFAULT')
             num_ftrs = ml_model.classifier.in_features
             ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'alexnet':
+        elif model.name == 'AlexNet':
             ml_model = torchvision.models.alexnet(weights='DEFAULT')
             num_ftrs = ml_model.classifier[6].in_features
             ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'convnext_base':
+        elif model.name == 'ConvNext Base':
             ml_model = torchvision.models.convnext_base(weights='DEFAULT')
             num_ftrs = ml_model.classifier[2].in_features
             ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
@@ -236,19 +236,19 @@ def run_labelling_using_model(app_context, project, dataset, model):
     
     with app_context:
         # initialise model
-        if model.name == 'resnet18':
+        if model.name == 'ResNet-18':
             ml_model = torchvision.models.resnet18(weights='DEFAULT')
             num_ftrs = ml_model.fc.in_features
             ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'densenet121':
+        elif model.name == 'DenseNet-121':
             ml_model = torchvision.models.densenet121(weights='DEFAULT')
             num_ftrs = ml_model.classifier.in_features
             ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'alexnet':
+        elif model.name == 'AlexNet':
             ml_model = torchvision.models.alexnet(weights='DEFAULT')
             num_ftrs = ml_model.classifier[6].in_features
             ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'convnext_base':
+        elif model.name == 'ConvNext Base':
             ml_model = torchvision.models.convnext_base(weights='DEFAULT')
             num_ftrs = ml_model.classifier[2].in_features
             ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)

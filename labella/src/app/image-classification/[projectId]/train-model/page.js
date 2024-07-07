@@ -5,9 +5,30 @@ import InputBox from "@/components/forms/InputBox";
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import Navbar from "@/components/nav/NavBar";
 import axios from "axios";
-import { toast } from 'react-hot-toast'
+import { toast } from "react-hot-toast";
 
-const models = ["resnet18", "resnet50", "alexnet", "convnext_base"];
+const models = [
+  {
+    name: "ResNet-18",
+    description:
+      "ResNet-18 is a deep convolutional neural network known for its residual connections, overcoming training challenges in deep architectures by using skip connections.",
+  },
+  {
+    name: "DenseNet-121",
+    description:
+      "DenseNet-121 is characterized by densely connected layers, enhancing feature reuse and gradient flow, leading to efficient parameter usage in image classification tasks.",
+  },
+  {
+    name: "AlexNet",
+    description:
+      "AlexNet is a pioneering CNN architecture that introduced ReLU activation, dropout, and data augmentation techniques, revolutionizing computer vision after winning the ILSVRC in 2012.",
+  },
+  {
+    name: "ConvNext Base",
+    description:
+      "ConvNext Base is a foundational CNN architecture for computer vision tasks, featuring convolutional layers for feature extraction and flexible design for various applications.",
+  },
+];
 
 export default function TrainModelButton({ params }) {
   const [formData, setFormData] = useState({
@@ -15,6 +36,7 @@ export default function TrainModelButton({ params }) {
     num_epochs: 3,
     train_test_split: 0.8,
     model_name: "",
+    model_description: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -22,24 +44,25 @@ export default function TrainModelButton({ params }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    let validationErrors = validate()
+    let validationErrors = validate();
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
       try {
         let apiEndpoint =
-          process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${params.projectId}/train`;
-          console.log(formData)
+          process.env.NEXT_PUBLIC_API_ENDPOINT +
+          `/model/${params.projectId}/train`;
+        console.log(formData);
         const response = await axios.post(apiEndpoint, formData);
-        
-        console.log(response)
+
+        console.log(response);
 
         if (response.status === 200) {
           toast.success("Job created");
         }
       } catch (err) {
         console.log(err);
-      } 
+      }
     }
   };
 
@@ -85,20 +108,25 @@ export default function TrainModelButton({ params }) {
           </p>
           <form>
             <p className="mt-2">Select Model Architecture</p>
-            <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div className="mb-4 flex flex-row flex-wrap gap-x-4 gap-y-1">
               {models.map((model, index) => (
                 <div
                   key={index}
-                  className={`flex border border-white border-opacity-50 w-32 xl:w-40 2xl:w-64 items-center justify-center rounded-lg h-8 cursor-pointer my-1 ${
-                    formData.model_name === model
+                  className={`border border-white border-opacity-50 w-72 rounded-lg cursor-pointer my-1 p-4 ${
+                    formData.model_name === model.name
                       ? "bg-[#FF52BF] text-black"
                       : "hover:bg-[#FF52BF] hover:text-black"
                   }`}
                   onClick={() => {
-                    setFormData({ ...formData, model_name: model });
+                    setFormData({
+                      ...formData,
+                      model_name: model.name,
+                      model_description: model.description,
+                    });
                   }}
                 >
-                  {model}
+                  <p className="font-bold mb-2">{model.name}</p>
+                  <p>{model.description}</p>
                 </div>
               ))}
               {errors.model_name && (
