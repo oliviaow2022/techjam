@@ -7,7 +7,7 @@ import Navbar from "@/components/nav/NavBar";
 import axios from "axios";
 import { toast } from 'react-hot-toast'
 
-const models = ["resnet18", "densenet121", "alexnet", "convnext_base"];
+const models = ["resnet18", "resnet50", "alexnet", "convnext_base"];
 
 export default function TrainModelButton({ params }) {
   const [formData, setFormData] = useState({

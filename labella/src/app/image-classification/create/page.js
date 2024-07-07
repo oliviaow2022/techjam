@@ -22,7 +22,7 @@ export default function ImageClassification() {
     setParsedJson(parsedJson);
   };
 
-  const [selectedOption, setSelectedOption] = useState("Existing dataset");
+  const [selectedOption, setSelectedOption] = useState("Custom dataset");
   const handleOptionChange = (e) => {
     setSelectedOption(e.target.value);
   };
@@ -102,7 +102,7 @@ export default function ImageClassification() {
           }
         );
 
-        console.log(createResponse);
+        console.log("submission", createResponse);
 
         const zipFileFormData = new FormData();
         zipFileFormData.append("file", zipFile);
@@ -117,7 +117,7 @@ export default function ImageClassification() {
           }
         );
 
-        console.log(uploadFileResponse.data);
+        console.log("upload", uploadFileResponse.data);
 
         if (
           createResponse.status === 200 &&
@@ -125,8 +125,8 @@ export default function ImageClassification() {
         ) {
           toast.success("Success");
         }
-
         router.push(`/image-classification/${createResponse.data.project.id}/label`);
+
         // Reset form or handle successful submission
       } catch (error) {
         console.error("Error submitting form:", error);

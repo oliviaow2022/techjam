@@ -156,12 +156,12 @@ export default function Label({ params }) {
               {datasetData?.dataset.project_type === "Multilabel Classification" ?  (<div className="bg-[#3B3840] rounded-lg w-96 p-4">
                   {Object.entries(parsedClassToLabelMapping).map(([category, label], categoryIndex) => {
                     return (
-                      <div>
+                      <div key={categoryIndex}>
                         <p className="text-white font-bold mb-2">{category}</p>
                         <div className="flex flex-wrap gap-4">
                           {Object.entries(label).map(([key, value]) => (
                             <LabelButton
-                              key={key}
+                              key={`${categoryIndex}_${key}`}
                               classInteger={`${categoryIndex}_${key}`}
                               name={value}
                               handleOptionChange={handleLabelAdditionMulti}
