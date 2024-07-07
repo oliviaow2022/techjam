@@ -38,7 +38,7 @@ general_routes = Blueprint('general', __name__)
                         'description': 'Mapping of class indices to labels',
                         'example': {0: 'class_a', 1: 'class_b'}
                     },
-                    'model_name': {'type': 'string', 'description': 'Name of the model', 'example': 'resnet18'}
+                    'model_name': {'type': 'string', 'description': 'Name of the model', 'example': 'ResNet-18'}
                 },
                 'required': ['project_name', 'num_classes', 'class_to_label_mapping', 'model_name']
             }

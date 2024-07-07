@@ -42,6 +42,7 @@ class Project(db.Model):
             "id": self.id,
             "name": self.name,
             "user_id": self.user_id,
+            "bucket": self.bucket,
             "type": self.type,
             "prefix": self.prefix,
             "bucket": self.bucket
@@ -66,7 +67,7 @@ class Dataset(db.Model):
             "name": self.name,
             "project_id": self.project_id,
             "num_classes": self.num_classes,
-            "class_to_label_mapping": self.class_to_label_mapping,
+            "class_to_label_mapping": json.dumps(self.class_to_label_mapping) if isinstance(self.class_to_label_mapping, str) else self.class_to_label_mapping,
             "project_type": project_type
         }
 
@@ -99,6 +100,7 @@ class DataInstance(db.Model):
 class Model(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(256), nullable=False)
+    description = db.Column(db.String(256), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
     saved = db.Column(db.String(128), nullable=True)
 

@@ -13,7 +13,7 @@ model_routes = Blueprint('model', __name__)
 @model_routes.route('/create', methods=['POST'])
 @swag_from({
     'tags': ['Model'],
-    'description': 'model name must be in this list [resnet18, densenet121, alexnet, convnext_base]!!',
+    'description': 'model name must be in this list [ResNet-18, DenseNet-121, AlexNet, ConvNext Base]!!',
     'parameters': [
         {
             'name': 'body',
@@ -74,7 +74,7 @@ def create_model():
                     },
                     'model_name': {
                         'type': 'string',
-                        'description': 'Model Architecture e.g. resnet18'
+                        'description': 'Model Architecture e.g. ResNet-18'
                     }
                 }
             }
@@ -87,6 +87,7 @@ def new_training_job(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
 
     model_name = request.json.get('model_name')
+    model_description = request.json.get('model_description')
     num_epochs = int(request.json.get('num_epochs'))
     train_test_split = float(request.json.get('train_test_split'))
     batch_size = int(request.json.get('batch_size'))
@@ -97,7 +98,7 @@ def new_training_job(project_id):
     # check if model with the same architecture already exists
     model = Model.query.filter_by(name=model_name, project_id=project.id).first()
     if not model:
-        model = Model(name=model_name, project_id=project_id)
+        model = Model(name=model_name, project_id=project_id, description=model_description)
         db.session.add(model)
         db.session.commit()
 
