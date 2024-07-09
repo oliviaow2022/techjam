@@ -1,4 +1,4 @@
-# techjam
+# Labella 
 This repository was built for the Tiktok Techjam 2024 competition under Track 7: On Unleashing Potential in Machine Learning Infrastructure.
 
 ## Problem Statement
