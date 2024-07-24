@@ -2,7 +2,7 @@ import torch
 import os, time
 from tempfile import TemporaryDirectory
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from S3ImageDataset import s3, S3ImageDataset, download_weights_from_s3
+from services.S3ImageDataset import s3, S3ImageDataset, download_weights_from_s3
 from models import db, History, Epoch, DataInstance
 from tqdm import tqdm
 from torch.utils.data import random_split, DataLoader

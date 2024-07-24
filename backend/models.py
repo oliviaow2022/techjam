@@ -96,6 +96,34 @@ class DataInstance(db.Model):
     def __repr__(self):
         return f'<DataInstance {self.data}>'
     
+
+class Annotation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String, nullable=False)
+    image_id = db.Column(db.Integer, nullable=True)
+    boxes = db.Column(db.JSON, nullable=True)
+    labels = db.Column(db.JSON, nullable=True)
+    area = db.Column(db.JSON, nullable=True)
+    iscrowd = db.Column(db.JSON, nullable=True)
+    manually_processed = db.Column(db.Boolean, default=False)
+    dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
+    confidence = db.Column(db.Float, default=0.0, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "filename": self.filename,
+            "image_id": self.image_id,
+            "boxes": self.boxes,
+            "labels": self.labels,
+            "area": self.area,
+            "iscrowd": self.iscrowd,
+            "dataset_id": self.dataset_id
+        }
+
+    def __repr__(self):
+        return f'<Annotation id={self.id}, image_id={self.image_id}, boxes={self.boxes}, labels={self.labels}, area={self.area}, iscrowd={self.iscrowd}>'
+    
     
 class Model(db.Model):
     id = db.Column(db.Integer, primary_key=True)

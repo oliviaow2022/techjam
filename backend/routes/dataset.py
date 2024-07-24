@@ -6,7 +6,7 @@ import json
 from werkzeug.utils import secure_filename
 import os
 import uuid
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 from services.dataset import get_dataset_config
 import zipfile
 
@@ -104,7 +104,7 @@ def return_dataframe(id):
     ]
 })
 def return_batch_for_labelling(project_id):
-    batch_size = request.json.get('batch_size') 
+    batch_size = request.json.get('batch_size')
 
     if not batch_size:
         batch_size = 20
