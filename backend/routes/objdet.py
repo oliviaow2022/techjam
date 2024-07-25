@@ -41,7 +41,7 @@ def upload_file(dataset_id):
 
     # Process each file in the extracted folder
     for root, _, files in os.walk(UPLOAD_FOLDER):
-        for file_name in files:
+        for i, file_name in enumerate(files):
             if file_name.endswith('.zip'):  # Skip the original zip file
                 continue
 
@@ -54,7 +54,7 @@ def upload_file(dataset_id):
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
             
             # Save to database
-            annotation = Annotation(filename=unique_filename, dataset_id=dataset.id)
+            annotation = Annotation(filename=unique_filename, dataset_id=dataset.id, image_id=i)
             db.session.add(annotation)
 
             # Remove file from local storage
@@ -63,6 +63,13 @@ def upload_file(dataset_id):
     db.session.commit()
 
     return jsonify({'message': 'Files successfully uploaded into dataset'}), 201
+
+
+# for debugging only
+@objdet_routes.route('<int:dataset_id>/all', methods=['GET'])
+def view_annotations(dataset_id):
+    annotations = Annotation.query.filter_by(dataset_id=dataset_id)
+    return [a.to_dict() for a in annotations]
 
     
 @objdet_routes.route('<int:project_id>/batch', methods=['POST'])
