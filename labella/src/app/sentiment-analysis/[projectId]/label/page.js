@@ -73,7 +73,18 @@ export default function ManualLabelling({ params }) {
   if (loading) {
     return <div>Loading...</div>;
   }
-
+  const parseJsonIfNeeded = (data) => {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        console.error('Failed to parse JSON string:', error);
+        return {};
+      }
+    }
+    return data;
+  };
+  const parsedClassToLabelMapping = parseJsonIfNeeded(datasetData?.dataset?.class_to_label_mapping) 
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
@@ -105,7 +116,7 @@ export default function ManualLabelling({ params }) {
               <p className="text-white font-bold mb-2">Class</p>
               <div className="flex flex-wrap justify-between">
                 {Object.entries(
-                  datasetData?.dataset.class_to_label_mapping
+                  parsedClassToLabelMapping
                 ).map(([key, value]) => (
                   <LabelButton
                     key={key}
