@@ -231,6 +231,8 @@ def run_training(app_context, project, dataset, model, NUM_EPOCHS, TRAIN_TEST_SP
 
         print(history.to_dict())
 
+        run_labelling_using_model(app_context, project, dataset, model)
+
 
 def run_labelling_using_model(app_context, project, dataset, model):
     

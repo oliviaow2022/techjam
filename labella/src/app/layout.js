@@ -16,8 +16,7 @@ export default function RootLayout({ children }) {
         <div>
           <Toaster position="top-right" reverseOrder={false} />
         </div>
-        {children}
-      </body>
+        {children}</body>
     </html>
   );
 }

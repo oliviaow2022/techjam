@@ -35,11 +35,10 @@ export default function TrainModel({ params }) {
       let apiEndpoint =
         process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/train`;
 
+        toast.success("Job created")
       try {
         const response = await axios.post(apiEndpoint, selectedModel);
-        if (response.status === 200) {
-          toast.success("Job created")
-        }
+        console.log(response)
       } catch (error) {
         toast.error("Error");
         console.log(error);
@@ -74,7 +73,7 @@ export default function TrainModel({ params }) {
                   <div
                     key={index}
                     className={`flex flex-wrap border border-white border-opacity-50 w-72 rounded-lg cursor-pointer mt-1 p-4 ${
-                      selectedModel.name === model.name
+                      selectedModel?.model_name === model.model_name
                         ? "bg-[#3FEABF] text-black"
                         : "hover:bg-[#3FEABF] hover:text-black"
                     }`}
@@ -82,8 +81,8 @@ export default function TrainModel({ params }) {
                       setSelectedModel(model);
                     }}
                   >
-                    <p className="font-bold mb-2">{model.name}</p>
-                    <p>{model.description}</p>
+                    <p className="font-bold mb-2">{model.model_name}</p>
+                    <p>{model.model_description}</p>
                   </div>
                 ))}
               </div>
