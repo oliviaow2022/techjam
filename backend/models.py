@@ -110,10 +110,23 @@ class Annotation(db.Model):
     confidence = db.Column(db.Float, default=0.0, nullable=False)
 
     def to_dict(self):
+        bboxes = []
+        if self.boxes and self.labels:
+            for box, label in zip(self.boxes, self.labels):
+                bbox = {
+                    'x1': box[0],
+                    'y1': box[1],
+                    'x2': box[2],
+                    'y2': box[3],
+                    'label': label
+                }
+                bboxes.append(bbox)
+
         return {
             "id": self.id,
             "filename": self.filename,
             "image_id": self.image_id,
+            "bboxes": bboxes,
             "boxes": self.boxes,
             "labels": self.labels,
             "area": self.area,

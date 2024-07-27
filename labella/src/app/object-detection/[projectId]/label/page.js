@@ -1,17 +1,197 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/nav/NavBar";
-import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
+import axios from "axios";
+import ObjectDetectionSideNav from "@/components/nav/ObjectDetectionSideNav";
+import Arrow from "@/components/Arrow";
 
+import { RiDeleteBin5Fill } from "react-icons/ri";
+import { useState, useEffect, useRef } from "react";
+import { toast } from "react-hot-toast";
+
+const MAX_WIDTH = 800;
+const MAX_HEIGHT = 500;
 const LINE_OFFSET = 6;
 const ANCHOR_SIZE = 2;
 
-export default function ObjectDetection() {
+export default function ObjectDetection({ params }) {
   {
+    // fetch data logic
+    const batchApiEndpoint =
+      process.env.NEXT_PUBLIC_API_ENDPOINT +
+      `/objdet/${params.projectId}/batch`;
+    const datasetApiEndpoint =
+      process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}`;
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [images, setImages] = useState([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [datasetData, setDatasetData] = useState({});
+    const [imageDisplayRatio, setImageDisplayRatio] = useState(1);
+
+    const fetchBatch = async () => {
+      try {
+        setIsLoading(true);
+        const batchResponse = await axios.post(batchApiEndpoint, {});
+        setImages(batchResponse.data);
+
+        if (batchResponse.data[currentIndex].bboxes) {
+          // scale coordinates from original image to canvas
+          const scaledBboxes = batchResponse.data[currentIndex].bboxes.map(
+            (rect) => {
+              return {
+                x1: Math.round(rect.x1 * imageDisplayRatio),
+                y1: Math.round(rect.y1 * imageDisplayRatio),
+                x2: Math.round(rect.x2 * imageDisplayRatio),
+                y2: Math.round(rect.y2 * imageDisplayRatio),
+                label: rect.label,
+              };
+            }
+          );
+          setRectangles(scaledBboxes);
+        }
+        console.log(batchResponse.data);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      // to get class_to_label_mapping
+      const fetchDataset = async () => {
+        try {
+          setIsLoading(true);
+          const datasetResponse = await axios.get(datasetApiEndpoint);
+          setDatasetData(datasetResponse.data);
+          console.log(datasetResponse.data);
+        } catch (error) {
+          console.log(error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchDataset();
+      fetchBatch();
+    }, [batchApiEndpoint, datasetApiEndpoint]);
+
+    useEffect(() => {
+      if (currentIndex === images.length) {
+        fetchBatch();
+        setCurrentIndex(0);
+        console.log("currentImage", currentIndex, images[currentIndex]);
+      }
+    }, [batchApiEndpoint, currentIndex, images.length]);
+
+    // handle arrow click logic
+    const updateLabel = async (currentIndex) => {
+      if (rectangles.length == 0) {
+        return;
+      }
+
+      rectangles.forEach((rect) => {
+        if (!rect.label) {
+          toast.error("Label missing");
+          throw new Error("Label missing");
+        }
+      });
+
+      console.log("updated currentImage", currentIndex, images[currentIndex]);
+
+      let updateEndpoint =
+        process.env.NEXT_PUBLIC_API_ENDPOINT +
+        `/objdet/${images[currentIndex].id}/label`;
+
+      const updateResponse = await axios.post(updateEndpoint, {
+        annotations: rectangles,
+        image_display_ratio: imageDisplayRatio,
+      });
+
+      if (updateResponse.status === 200) {
+        toast.success("Label updated");
+      }
+
+      // update image bbox locally
+      const updatedImages = [...images];
+      const currentImage = updatedImages[currentIndex];
+      currentImage.bboxes = rectangles;
+      setImages(updatedImages);
+
+      console.log(updateResponse.data);
+    };
+
+    const handlePrev = async () => {
+      try {
+        await updateLabel(currentIndex);
+        const newIndex = (currentIndex - 1 + images.length) % images.length;
+        setCurrentIndex(newIndex);
+        console.log("currentImage", newIndex, images[newIndex]);
+        resetCanvas(newIndex);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    const handleNext = async () => {
+      try {
+        await updateLabel(currentIndex);
+        const newIndex = currentIndex + 1;
+        setCurrentIndex(newIndex);
+        console.log("currentImage", newIndex, images[newIndex]);
+        resetCanvas(newIndex);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    const handleClick = async (index) => {
+      try {
+        await updateLabel(currentIndex);
+        setCurrentIndex(index);
+        console.log("currentImage", index, images[index]);
+        resetCanvas(index);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    // canvas logic
+    const resetCanvas = (newIndex) => {
+      // take existing bboxes
+      if (images[newIndex].bboxes) {
+        console.log(
+          "loading bbox from current image",
+          newIndex,
+          images[newIndex]
+        );
+
+        // scale coordinates from original image to canvas
+        const scaledBboxes = images[newIndex].bboxes.map((rect) => {
+          return {
+            x1: Math.round(rect.x1 * imageDisplayRatio),
+            y1: Math.round(rect.y1 * imageDisplayRatio),
+            x2: Math.round(rect.x2 * imageDisplayRatio),
+            y2: Math.round(rect.y2 * imageDisplayRatio),
+            label: rect.label,
+          };
+        });
+        console.log("imageDisplayRatio", imageDisplayRatio);
+        console.log("scaledBboxes", scaledBboxes);
+        setRectangles(scaledBboxes);
+      } else {
+        setRectangles([]);
+      }
+
+      setLabelCounts({});
+      setMouseDown(false);
+      setCurrentRect(null);
+      setClickedArea({ index: -1, pos: "o" });
+      setLabel("");
+    };
+
     const canvasRef = useRef(null);
-    const image_path =
-      "https://miro.medium.com/v2/resize:fit:1400/1*v0Bm-HQxWtpbQ0Yq463uqw.jpeg";
     const [rectangles, setRectangles] = useState([]);
     const [labelCounts, setLabelCounts] = useState({});
     const [mouseDown, setMouseDown] = useState(false);
@@ -90,38 +270,63 @@ export default function ObjectDetection() {
       return { index: -1, pos: "o" };
     }
 
+    // redraw canvas when rectangles change
     useEffect(() => {
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
 
       const image = new Image();
+      if (datasetData && datasetData.project) {
+        image.src = `https://${datasetData?.project.bucket}.s3.amazonaws.com/${datasetData?.project.prefix}/${images[currentIndex]?.filename}`;
 
-      image.src = image_path;
-      image.onload = () => {
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        rectangles.forEach(({ x1, y1, x2, y2, color }) => {
-          drawRectangle(context, x1, y1, x2, y2, color);
-        });
+        const aspectRatio = image.width / image.height;
+        // Determine the canvas dimensions while maintaining the aspect ratio
+        let canvasWidth = image.width;
+        let canvasHeight = image.height;
 
-        if (clickedArea.index === -1 && currentRect) {
-          drawRectangle(
-            context,
-            currentRect.x1,
-            currentRect.y1,
-            currentRect.x2,
-            currentRect.y2,
-            currentRect.label
-          );
+        // use aspect ratio equation
+        if (canvasWidth > MAX_WIDTH) {
+          canvasWidth = MAX_WIDTH;
+          canvasHeight = canvasWidth / aspectRatio;
         }
-      };
 
-      const counts = rectangles.reduce((acc, rect) => {
-        const label = rect.label || "Unlabeled";
-        acc[label] = (acc[label] || 0) + 1;
-        return acc;
-      }, {});
-      setLabelCounts(counts);
-    }, [rectangles, currentRect]);
+        if (canvasHeight > MAX_HEIGHT) {
+          canvasHeight = MAX_HEIGHT;
+          canvasWidth = canvasHeight * aspectRatio;
+        }
+
+        setImageDisplayRatio(image.width / canvasWidth);
+
+        // Set the canvas dimensions
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        image.onload = () => {
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          rectangles.forEach(({ x1, y1, x2, y2, color }) => {
+            drawRectangle(context, x1, y1, x2, y2, color);
+          });
+
+          if (clickedArea.index === -1 && currentRect) {
+            drawRectangle(
+              context,
+              currentRect.x1,
+              currentRect.y1,
+              currentRect.x2,
+              currentRect.y2,
+              currentRect.label
+            );
+          }
+        };
+
+        const counts = rectangles.reduce((acc, rect) => {
+          const label = rect.label || "Unlabeled";
+          acc[label] = (acc[label] || 0) + 1;
+          return acc;
+        }, {});
+        setLabelCounts(counts);
+      }
+    }, [rectangles, currentRect, currentIndex, images]);
 
     const drawRectangle = (context, x1, y1, x2, y2, color, label = "") => {
       let width = x2 - x1;
@@ -235,7 +440,7 @@ export default function ObjectDetection() {
 
       console.log("clickedArea", clickedArea);
       console.log("currentRect", currentRect);
-      console.log(rectangles);
+      console.log("rectangles", rectangles);
 
       // new rectangle
       if (clickedArea.index === -1) {
@@ -347,37 +552,99 @@ export default function ObjectDetection() {
       console.log(rectangles);
     };
 
+    // delete rectangle
+    const deleteRectangleByIndex = (index) => {
+      if (index < 0 || index >= rectangles.length) {
+        toast.error("Invalid selection");
+        return;
+      }
+      
+      setRectangles((prevRectangles) => {
+        const updatedRectangles = [...prevRectangles];
+        updatedRectangles.splice(index, 1);
+        return updatedRectangles;
+      });
+
+      setLabel("");
+      setMouseDown(false);
+      setCurrentRect(null);
+      setClickedArea({ index: -1, pos: "o" });
+
+      updateLabel(currentIndex);
+    };
+
     return (
       <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
         <Navbar />
         <div className="flex flex-row">
-          <ImageClassificationSideNav params={1} />
-          <div className="ml-0 mt-32 flex flex-row">
-            <div className="p-4">
-              <input
-                className="bg-transparent mb-5"
-                type="text"
-                value={label}
-                onChange={handleLabelChange}
-                placeholder="Enter label"
-              />
-              {Object.entries(labelCounts).map(([label, count]) => (
-                <div key={label} className="flex justify-between">
-                  <span>{label}</span>
-                  <span>{count}</span>
+          <ObjectDetectionSideNav params={1} />
+          <div className="ml-0 mt-32">
+            <div className="flex flex-row">
+              <div className="p-4">
+                <div className="flex flex-row items-center mb-5">
+                  <input
+                    className="bg-transparent"
+                    type="text"
+                    value={label}
+                    onChange={handleLabelChange}
+                    placeholder="Enter label"
+                  />
+                  <button
+                    className="rounded-lg"
+                    onClick={() => deleteRectangleByIndex(clickedArea.index)}
+                  >
+                    <RiDeleteBin5Fill color='#D887F5'/>
+                  </button>
                 </div>
-              ))}
+                {Object.entries(labelCounts).map(([label, count]) => (
+                  <div key={label} className="flex justify-between">
+                    <span>{label}</span>
+                    <span>{count}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between w-full">
+                <button onClick={handlePrev}>
+                  <Arrow direction="left" />
+                </button>
+                <canvas
+                  height={500}
+                  width={800}
+                  ref={canvasRef}
+                  className="border border-black"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseOut={handleMouseUp}
+                />
+                <button onClick={handleNext}>
+                  <Arrow direction="right" />
+                </button>
+              </div>
             </div>
-            <canvas
-              height={500}
-              width={800}
-              ref={canvasRef}
-              className="border border-black"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseOut={handleMouseUp}
-            />
+            <div className="grid grid-cols-10 gap-2 p-4">
+              {images.map((item, index) => {
+                return (
+                  <div
+                    className="flex flex-col justify-center"
+                    key={item.data}
+                    onClick={() => handleClick(index)}
+                  >
+                    <img
+                      src={`https://${datasetData?.project.bucket}.s3.amazonaws.com/${datasetData?.project.prefix}/${item.filename}`}
+                      className={`w-20 h-20 rounded-lg ${
+                        currentIndex === index
+                          ? "border-4 border-[#D887F5]"
+                          : ""
+                      }`}
+                    />
+                    <p className="break-all" style={{ fontSize: "10px" }}>
+                      {item.filename}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </main>

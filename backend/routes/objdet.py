@@ -84,7 +84,17 @@ def return_batch(project_id):
     annotations = Annotation.query.filter(
         Annotation.dataset_id == dataset.id,
         Annotation.manually_processed == False
-    ).order_by(Annotation.entropy.desc()).limit(batch_size).all()
+    ).order_by(Annotation.confidence.asc()).limit(batch_size).all()
+
+    if len(annotations) < batch_size:
+        top_up_count = batch_size - len(annotations)
+        top_up_annotations = Annotation.query.filter(
+            Annotation.dataset_id == dataset.id,
+            Annotation.manually_processed == True
+        ).order_by(Annotation.confidence.asc()).limit(top_up_count).all()
+
+        annotations.extend(top_up_annotations)
+        
     data_list = [instance.to_dict() for instance in annotations]
 
     return jsonify(data_list), 200
@@ -94,6 +104,7 @@ def return_batch(project_id):
 def label_data(annotation_id):
     # format from frontend: [{x1: 74, y1: 62, x2: 401, y2: 365, label: 'bus'}]
     data = request.json.get('annotations')
+    image_display_ratio = request.json.get('image_display_ratio')
 
     annotation = Annotation.query.get_or_404(annotation_id)
 
@@ -103,7 +114,11 @@ def label_data(annotation_id):
     parsed_iscrowd = []
 
     for item in data:
-        xmin, ymin, xmax, ymax = item['x1'], item['y1'], item['x2'], item['y2']
+        # scale coordinates from canvas size to original image size
+        xmin = round(item['x1'] * image_display_ratio)
+        ymin = round(item['y1'] * image_display_ratio)
+        xmax = round(item['x2'] * image_display_ratio)
+        ymax = round(item['y2'] * image_display_ratio)
         label = item['label']
 
         parsed_boxes.append([xmin, ymin, xmax, ymax])
