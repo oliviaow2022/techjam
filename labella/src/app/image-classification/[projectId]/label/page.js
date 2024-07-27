@@ -85,6 +85,7 @@ export default function Label({ params }) {
       if (response.status === 200) {
         setCurrentIndex((currentIndex) => (currentIndex += 1));
         toast.success("Label updated");
+        fetchBatch();
       }
     } catch (err) {
       console.log(err);
@@ -180,6 +181,7 @@ export default function Label({ params }) {
                         classInteger={key}
                         name={value}
                         handleOptionChange={handleLabelAdditionSingle}
+                        selectedOption={images[currentIndex]}
                       />
                     )
                   )}

@@ -118,7 +118,7 @@ def return_batch_for_labelling(project_id):
 
     data_instances = DataInstance.query.filter(
         DataInstance.dataset_id == dataset.id,
-        DataInstance.manually_processed == False
+        # DataInstance.manually_processed == False
     ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
     data_list = [instance.to_dict() for instance in data_instances]
     print(data_list)
