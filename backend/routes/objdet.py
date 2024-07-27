@@ -1,4 +1,5 @@
-import os
+import os, time
+
 import uuid
 import zipfile
 import torch
@@ -151,5 +152,55 @@ def train_model(project_id):
     model = get_model_instance(num_classes=dataset.num_classes)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    model.to(device)
 
-    pass
+    since = time.time()
+    # input from user
+    num_epochs = 10 
+
+    for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+
+        for images, targets in train_loader:
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+            optimizer.zero_grad()
+            loss_dict = model(images, targets)
+            losses = sum(loss for loss in loss_dict.values())
+            losses.backward()
+            optimizer.step()
+
+            running_loss += losses.item()
+
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader)}")
+
+        # Validation loop
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for images, targets in val_loader:
+                images = list(image.to(device) for image in images)
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                loss_dict = model(images, targets)
+                losses = sum(loss for loss in loss_dict.values())
+                val_loss += losses.item()
+
+        print(f"Validation Loss: {val_loss / len(val_loader)}")
+
+    # Save the trained model
+    model_save_path = os.path.join('./models', f'{project_id}_model.pth')
+    model_saved = torch.save(model.state_dict(), model_save_path)
+
+    time_elapsed = time.time() - since
+    print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+    s3.upload_file(project.bucket, model_save_path)
+    
+    db.session.add(model_saved)
+    db.session.commit()
+    print('model saved to', model_save_path)
+
+    return jsonify({"message": "Model trained successfully", "model_path": model_save_path}), 200
+
