@@ -1,4 +1,8 @@
+import Link from 'next/link';
+import { usePathname } from 'next/navigation'
+
 export default function SentimentAnalysisSideNav({ params }) {
+  const currentPath = usePathname();
   const menuOptions = [
     {
       id: 0,
@@ -17,9 +21,9 @@ export default function SentimentAnalysisSideNav({ params }) {
         {menuOptions.map((option, index) => (
           <p
             key={index}
-            className="hover:cursor-pointer hover:text-[#3FEABF] text-white"
+            className={`hover:cursor-pointer ${currentPath === option.link ? 'text-[#3FEABF]' : 'text-white'}`}
           >
-            <a href={option.link}>{option.name}</a>
+            <Link href={option.link}>{option.name}</Link>
           </p>
         ))}
       </div>

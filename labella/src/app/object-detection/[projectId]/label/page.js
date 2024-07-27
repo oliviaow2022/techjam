@@ -418,13 +418,13 @@ export default function ObjectDetection({ params }) {
         y2: y,
       });
 
-      if (currentArea.index === -1) {
-        setLabel("");
-      } else if (
+      if (
         currentArea.index !== -1 &&
         rectangles[currentArea.index].label
       ) {
         setLabel(rectangles[currentArea.index].label);
+      } else {
+        setLabel("")
       }
     };
 
@@ -505,10 +505,22 @@ export default function ObjectDetection({ params }) {
       }
     };
 
+    function calculateRectangleArea(rectangle) {
+      let width = Math.abs(rectangle.x2 - rectangle.x1)
+      let height = Math.abs(rectangle.y2 - rectangle.y1)
+      return width * height
+    }
+
     const handleMouseUp = () => {
       setRectangles((prevRectangles) => {
+        // new rectangle
         if (clickedArea.index === -1 && currentRect) {
+          // rectangle area too small
+          if (calculateRectangleArea(currentRect) < 150) {
+            return [...prevRectangles]
+          }
           return [...prevRectangles, currentRect];
+        // adjusting current rectangle
         } else if (clickedArea.index !== -1) {
           const newRectangles = [...prevRectangles];
           const selectedBox = { ...newRectangles[clickedArea.index] };
@@ -577,7 +589,7 @@ export default function ObjectDetection({ params }) {
       <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
         <Navbar />
         <div className="flex flex-row">
-          <ObjectDetectionSideNav params={1} />
+          <ObjectDetectionSideNav params={params.projectId} />
           <div className="ml-0 mt-32">
             <div className="flex flex-row">
               <div className="p-4">
@@ -599,7 +611,7 @@ export default function ObjectDetection({ params }) {
                 {Object.entries(labelCounts).map(([label, count]) => (
                   <div key={label} className="flex justify-between">
                     <span>{label}</span>
-                    <span>{count}</span>
+                    <span className="w-4 text-center">{count}</span>
                   </div>
                 ))}
               </div>
