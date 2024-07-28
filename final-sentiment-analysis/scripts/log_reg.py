@@ -17,7 +17,7 @@ import pickle
 
 def load_dataset(file_path):
     df = pd.read_csv(file_path)
-    df['Review Text'] = df['Review Text'].fillna('')
+    df['Review Text'] = df['Review Text'].fillna('') # make this part more dynamic, user can add in the title of the column
     df = df.dropna(subset=['predicted_label'])
     return df
 
