@@ -1,4 +1,10 @@
 import pandas as pd
+import json
+import requests
+import os 
+import sys
+import numpy as np
+import torch
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
@@ -8,14 +14,14 @@ import xgboost as xgb
 from sklearn.metrics import classification_report
 import pickle
 
-# Load the dataset
+
 def load_dataset(file_path):
     df = pd.read_csv(file_path)
     df['Review Text'] = df['Review Text'].fillna('')
     df = df.dropna(subset=['predicted_label'])
     return df
 
-# Train the selected model
+
 def train_model(model_name, X_train, y_train):
     vectorizer = TfidfVectorizer(stop_words='english')
     X_train_tfidf = vectorizer.fit_transform(X_train)
@@ -34,25 +40,25 @@ def train_model(model_name, X_train, y_train):
     model.fit(X_train_tfidf, y_train)
     return model, vectorizer
 
-# Evaluate the model
+# model evaluation at the relevant points
 def evaluate_model(model, vectorizer, X_test, y_test):
     X_test_tfidf = vectorizer.transform(X_test)
     y_pred = model.predict(X_test_tfidf)
     report = classification_report(y_test, y_pred, output_dict=True)
     return pd.DataFrame(report).transpose(), y_pred, X_test_tfidf
 
-# Get confidence scores
+# confidence scores from the 2nd prediction by the models
 def get_confidence_scores(model, X_tfidf):
     if hasattr(model, "predict_proba"):
         confidences = model.predict_proba(X_tfidf)
     elif hasattr(model, "decision_function"):
         confidences = model.decision_function(X_tfidf)
-        confidences = (confidences - confidences.min()) / (confidences.max() - confidences.min())  # normalize
+        confidences = (confidences - confidences.min()) / (confidences.max() - confidences.min())  
     else:
         raise ValueError("Model does not support confidence scoring")
     return confidences
 
-# Active learning loop
+# no active learner, only confidence sampling
 def active_learning_loop(model_name, X_train, y_train, X_test, y_test, cycles=3):
     model, vectorizer = train_model(model_name, X_train, y_train)
     for cycle in range(cycles):
@@ -61,20 +67,20 @@ def active_learning_loop(model_name, X_train, y_train, X_test, y_test, cycles=3)
         print("Classification Report:")
         print(report_df)
 
-        # Get confidence scores and select the 5 least confident samples
+        # only selection of the 5 least confident samples
         confidences = get_confidence_scores(model, X_test_tfidf)
         if len(confidences.shape) == 1:  # decision_function returns a 1D array for binary classification
             confidences = confidences.reshape(-1, 1)
         least_confident_indices = confidences.min(axis=1).argsort()[:5]
 
-        # Ask user to label the least confident samples
+        # manual labelling
         for idx in least_confident_indices:
             print(f"Review Text: {X_test.iloc[idx]}")
             new_label = input("Enter the correct label (negative, neutral, positive): ")
-            y_train = y_train._append(pd.Series({X_test.index[idx]: new_label}))
+            y_train = y_train._append(pd.Series({X_test.index[idx]: new_label})) # use _append, not append
             X_train = X_train._append(pd.Series({X_test.index[idx]: X_test.iloc[idx]}))
         
-        # Remove the newly labeled samples from the test set
+        # removing the manually labelled sample from the test set 
         X_test = X_test.drop(X_test.index[least_confident_indices])
         y_test = y_test.drop(y_test.index[least_confident_indices])
 
@@ -88,7 +94,7 @@ def save_model(model, vectorizer, file_path):
     with open(file_path, 'wb') as f:
         pickle.dump((model, vectorizer), f)
 
-# Main function
+
 def main():
     file_path = input("Enter the path to your CSV file: ")
     df = load_dataset(file_path)
