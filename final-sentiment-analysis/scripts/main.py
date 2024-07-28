@@ -20,8 +20,8 @@ def sentiment_analysis(df, text_column, model_name):
     return df
 
 
-df = pd.read_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/unlabelled_clothes_reviews.csv')
-df.drop(columns=['Unnamed: 0'], inplace=True)
+df = pd.read_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/train_adjusted.csv')
+# df.drop(columns=['Unnamed: 0'], inplace=True)
 
 
 # DeBERTa
