@@ -1,6 +1,7 @@
 import pandas as pd
 from transformers import pipeline
 import torch
+import os
 
 def sentiment_analysis(df, text_column, model_name):
     device = 0 if torch.cuda.is_available() else -1
@@ -18,21 +19,25 @@ def sentiment_analysis(df, text_column, model_name):
 
     return df
 
-df = pd.DataFrame({
-    'Review Text': ["I love the new design of your website!", "The service was okay, nothing special.", "I am not happy with the product quality.", None]
-})
+
+df = pd.read_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/unlabelled_clothes_reviews.csv')
+df.drop(columns=['Unnamed: 0'], inplace=True)
+
 
 # DeBERTa
 df_deberta = sentiment_analysis(df, 'Review Text', 'microsoft/deberta-large-mnli')
-print("Results using DeBERTa:")
-print(df_deberta)
+print("labelling with DeBERTa completed! Starting to save file now...")
+df_deberta.to_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/labelled_reviews/deberta.csv', index=False)
+# print(df_deberta)
 
 # BART
 df_bart = sentiment_analysis(df, 'Review Text', 'facebook/bart-large-mnli')
-print("\nResults using BART:")
-print(df_bart)
+print("labelling with BART completed! Starting to save file now...")
+df_bart.to_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/labelled_reviews/bart.csv', index=False)
+# print(df_bart)
 
 # Ernie
 df_ernie = sentiment_analysis(df, 'Review Text', 'MoritzLaurer/ernie-m-large-mnli-xnli')
-print("\nResults using ernie:")
-print(df_ernie)
+print("labelling with Ernie completed! Statring to save file now...")
+df_ernie.to_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/labelled_reviews/ernie.csv', index=False)
+# print(df_ernie)
