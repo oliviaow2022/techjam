@@ -20,7 +20,7 @@ def sentiment_analysis(df, text_column, model_name):
     return df
 
 
-df = pd.read_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/train_adjusted.csv')
+df = pd.read_csv('/Users/sriyan/Documents/techjam/final-sentiment-analysis/data/train_balanced_final.csv')
 # df.drop(columns=['Unnamed: 0'], inplace=True)
 
 
