@@ -41,6 +41,7 @@ def create_dataset():
     project_id = request.json.get('project_id')
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
+    project_type = request.json.get('project_type')
 
     num_classes, class_to_label_mapping = get_dataset_config(name, num_classes, class_to_label_mapping)
 
@@ -48,8 +49,7 @@ def create_dataset():
         return jsonify({"error": "Bad Request", "message": "Missing fields"}), 400
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
-
-    dataset = Dataset(name=name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping))
+    dataset = Dataset(name=name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping), project_type=project_type)
     db.session.add(dataset)
     db.session.commit()
 
@@ -108,7 +108,6 @@ def return_batch_for_labelling(project_id):
 
     if not batch_size:
         batch_size = 20
-
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
@@ -241,3 +240,24 @@ def upload_files(id):
     db.session.commit()
 
     return jsonify({'message': 'Files successfully uploaded into dataset'}), 201
+
+
+@dataset_routes.route('/update_class_to_label_mapping/<int:dataset_id>', methods=['PUT'])
+def update_class_to_label_mapping(dataset_id):
+    data = request.get_json()
+    class_to_label_mapping = data.get('class_to_label_mapping')
+
+    if class_to_label_mapping is None:
+        return jsonify({"error": "class_to_label_mapping is required"}), 400
+
+    dataset = Dataset.query.get(dataset_id)
+    if dataset is None:
+        return jsonify({"error": "Dataset not found"}), 404
+
+    try:
+        dataset.class_to_label_mapping = class_to_label_mapping
+        db.session.commit()
+        return jsonify(dataset.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

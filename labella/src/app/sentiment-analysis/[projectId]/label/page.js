@@ -1,57 +1,150 @@
 "use client";
 
-import { toast } from 'react-hot-toast';
+import { toast } from "react-hot-toast";
+import Arrow from "@/components/Arrow";
+import { useState, useEffect } from "react";
 
 import Navbar from "@/components/nav/NavBar";
 import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
 import LabelButton from "@/components/LabelButton";
-
-const datasetData = {
-  class_to_label_mapping: {
-    0: "negative",
-    1: "positive",
-    2: "neutral",
-  },
-};
+import axios from "axios";
 
 export default function ManualLabelling({ params }) {
+  const datasetApiEndpoint =
+    process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}`;
+  const batchApiEndpoint =
+    process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/query`;
+
+  const [loading, setLoading] = useState(true);
+  const [datasetData, setDatasetData] = useState({});
+  const [batchData, setBatchData] = useState([]);
+  const [error, setError] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const handleLabelAddition = async (classInteger) => {
-    toast.success('Label updated')
+    let apiEndpoint =
+      process.env.NEXT_PUBLIC_API_ENDPOINT +
+      `/senti/${batchData[currentIndex].id}/label`;
+
+    try {
+      const response = await axios.post(apiEndpoint, {
+        label: classInteger,
+      });
+      if (response.status === 200) {
+        setCurrentIndex((currentIndex) => (currentIndex += 1));
+        toast.success("Label updated");
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
+  useEffect(() => {
+    const fetchDataset = async () => {
+      try {
+        const datasetResponse = await axios.get(datasetApiEndpoint);
+        console.log(datasetResponse.data);
+        setDatasetData(datasetResponse.data);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchBatch = async () => {
+      try {
+        const batchResponse = await axios.post(batchApiEndpoint, {
+          batch_size: 20,
+        });
+        setBatchData(batchResponse.data);
+        console.log(batchResponse.data);
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDataset();
+    fetchBatch();
+  }, [datasetApiEndpoint, batchApiEndpoint]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  const parseJsonIfNeeded = (data) => {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        console.error('Failed to parse JSON string:', error);
+        return {};
+      }
+    }
+    return data;
+  };
+  const parsedClassToLabelMapping = parseJsonIfNeeded(datasetData?.dataset?.class_to_label_mapping) 
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
         <SentimentAnalysisSideNav params={params.projectId} />
-        <form className="ml-0 lg:ml-20 mt-32">
+        <div className="ml-0 lg:ml-20 mt-32">
           <p className="text-xl text-[#3FEABF] font-bold mb-8">
             Sentiment Analysis
           </p>
           <div className="flex flex-row gap-4">
-            <div className="w-96 h-64 rounded-lg border-2 border-white p-4">
-              <p className="text-white font-bold mb-2">Data</p>
-              Just finished an amazing workout! 💪
+            <div className="flex gap-4 items-center justify-center">
+              <button
+                onClick={() => setCurrentIndex((prevIndex) => prevIndex - 1)}
+              >
+                <Arrow direction="left" />
+              </button>
+              <div className="w-96 h-64 rounded-lg border-2 border-white p-4">
+                <p className="text-white font-bold mb-2">Data</p>
+                {batchData[currentIndex]?.data}
+              </div>
+              <button
+                onClick={() => setCurrentIndex((prevIndex) => prevIndex + 1)}
+              >
+                <Arrow direction="right" />
+              </button>
             </div>
 
             <div className="bg-[#3B3840] rounded-lg w-96 p-4">
               <p className="text-white font-bold mb-2">Class</p>
               <div className="flex flex-wrap justify-between">
-                {Object.entries(datasetData?.class_to_label_mapping).map(
-                  ([key, value]) => (
-                    <LabelButton
-                      key={key}
-                      classInteger={key}
-                      name={value}
-                      handleOptionChange={handleLabelAddition}
-                      bgColour="bg-[#3FEABF]"
-                    />
-                  )
-                )}
+                {Object.entries(
+                  parsedClassToLabelMapping
+                ).map(([key, value]) => (
+                  <LabelButton
+                    key={key}
+                    classInteger={key}
+                    name={value}
+                    handleOptionChange={handleLabelAddition}
+                    bgColour="bg-[#3FEABF]"
+                  />
+                ))}
               </div>
             </div>
           </div>
-        </form>
+          <div className="grid grid-cols-10 gap-2">
+            {batchData.map((data_instance, index) => {
+              return (
+                <div
+                  key={data_instance.id}
+                  className={`w-20 h-20 rounded-lg overflow-hidden text-xs p-1 ${
+                    currentIndex === index ? "border-4 border-white" : ""
+                  }`}
+                  onClick={() => setCurrentIndex(index)}
+                >
+                  {data_instance.data}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </main>
   );

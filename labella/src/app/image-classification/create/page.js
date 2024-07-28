@@ -22,7 +22,7 @@ export default function ImageClassification() {
     setParsedJson(parsedJson);
   };
 
-  const [selectedOption, setSelectedOption] = useState("Existing dataset");
+  const [selectedOption, setSelectedOption] = useState("Custom Dataset");
   const handleOptionChange = (e) => {
     setSelectedOption(e.target.value);
   };
@@ -41,7 +41,7 @@ export default function ImageClassification() {
 
   const [formData, setFormData] = useState({
     projectName: "",
-    projectType: "image-classification",
+    projectType: selectedLabelOption,
     datasetName: "",
     numClasses: "",
     s3_prefix: "my-prefix/",
@@ -89,7 +89,7 @@ export default function ImageClassification() {
           apiEndpoint,
           {
             project_name: formData.projectName,
-            project_type: formData.projectType,
+            project_type: selectedLabelOption,
             dataset_name: formData.datasetName,
             num_classes: formData.numClasses,
             class_to_label_mapping: parsedJson,
@@ -164,19 +164,7 @@ export default function ImageClassification() {
           <div className="bg-white border-2 mx-5 h-100% hidden lg:block"></div>
           <div className="flex flex-col gap-y-2">
             <p className="font-bold mt-12 lg:mt-0 mb-2">Dataset</p>
-            <div className="flex gap-4">
-              <RadioButton
-                optionName={"Custom dataset"}
-                selectedOption={selectedOption}
-                handleOptionChange={handleOptionChange}
-              />
-              <RadioButton
-                optionName={"Existing dataset"}
-                selectedOption={selectedOption}
-                handleOptionChange={handleOptionChange}
-              />
-            </div>
-            {selectedOption === "Custom dataset" ? (
+            {selectedOption === "Custom Dataset" ? (
               <div>
                 <InputBox
                   label={"Name of dataset"}

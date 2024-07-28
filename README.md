@@ -1,4 +1,4 @@
-# techjam
+# Labella 
 This repository was built for the Tiktok Techjam 2024 competition under Track 7: On Unleashing Potential in Machine Learning Infrastructure.
 
 ## Problem Statement
@@ -40,7 +40,7 @@ Our team focused on two main aspects: developing a scalable, user-friendly platf
 | Challenge | Solution |
 |-----------|----------|
 | How to use an active learning cycle for different kinds of projects. | Sentiment analysis and image classification are different and therefore have different kinds of active learning cycles. |
-| Choosing the most suitable active learning algorithms that balance accuracy and time. | Conducted extensive research and experimented with various algorithms (such as DeBERTa-v3 model, Resnet???) to identify those that best suit the 3 different kinds of machine learning projects. |
+| Choosing the most suitable active learning algorithms that balance accuracy and time. | Conducted extensive research and experimented with various algorithms (such as DeBERTa-v3 model, Resnet) to identify those that best suit the 3 different kinds of machine learning projects. |
 | Ensuring the platform can handle large-scale datasets. | Leveraged cloud computing resources (AWS S3 buckets for datasets). |
 | Difficulty in creating an intuitive user flow when integrating the GUI with the active learning process. | Experimented with different user flows to refine user flows. |
 
@@ -68,6 +68,7 @@ With further development, we envision several enhancements and expansions for La
 3. Enhanced user experience
     - Provide detailed analytics and insights on the labelling progress
     - Facilitate collaborative labelling efforts by supporting multiple annotators working on the same project with seamless integration and version control.
+    - Allow users to view the status and estimated time to completion of training jobs.
 
 ## Built with
 - Front-end:  NextJS

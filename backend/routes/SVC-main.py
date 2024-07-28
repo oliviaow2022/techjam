@@ -24,7 +24,7 @@ def upload_file():
         return jsonify({"error": "No selected file"}), 400
     if file and (file.filename.endswith('.csv') or file.filename.endswith('.txt')):
         data = pd.read_csv(file) if file.filename.endswith('.csv') else pd.read_csv(file, sep='\t')
-        if 'text' not in data.columns:
+        if 'Text' not in data.columns:
             return jsonify({"error": "File must contain a 'text' column"}), 400
         return jsonify({"message": "File uploaded successfully", "samples": len(data)}), 200
     else:
@@ -35,10 +35,9 @@ def initialize_model():
     global learner, vectorizer, data, labeled_indices
     if data is None:
         return jsonify({"error": "No data uploaded"}), 400
-    
 
     vectorizer = TfidfVectorizer()
-    X = vectorizer.fit_transform(data['text'])
+    X = vectorizer.fit_transform(data['Text'])
     
     # Initialize the model
     model = SVC(kernel='linear', probability=True)
@@ -65,7 +64,7 @@ def active_learning():
     
     # Get unlabeled data
     unlabeled_idx = [i for i in range(len(data)) if i not in labeled_indices]
-    X = vectorizer.transform(data.iloc[unlabeled_idx]['text'])
+    X = vectorizer.transform(data.iloc[unlabeled_idx]['Text'])
     
     # Query the instance to be labeled
     query_idx, _ = learner.query(X)
@@ -75,18 +74,18 @@ def active_learning():
     global_idx = unlabeled_idx[query_idx[0]]
     
     # Return the instance to be labeled
-    return jsonify({str(global_idx): data['text'].iloc[global_idx]}), 200
+    return jsonify({str(global_idx): data['Text'].iloc[global_idx]}), 200
 
 @app.route('/label', methods=['POST'])
 def label_data():
     global learner, vectorizer, data, labeled_indices
     new_label = request.json.get('label')
-    text = request.json.get('text')
+    text = request.json.get('Text')
     if new_label is None or text is None:
         return jsonify({"error": "Invalid label data"}), 400
     
     # Find the index of the text in the data
-    idx = data[data['text'] == text].index[0]
+    idx = data[data['Text'] == text].index[0]
     
     # Update the learner
     X = vectorizer.transform([text])
@@ -118,7 +117,7 @@ def export_labels():
     if learner is None or vectorizer is None or data is None:
         return jsonify({"error": "Model not initialized or no data available"}), 400
     
-    X = vectorizer.transform(data['text'])
+    X = vectorizer.transform(data['Text'])
     predictions = learner.predict(X)
     probabilities = learner.predict_proba(X)
     

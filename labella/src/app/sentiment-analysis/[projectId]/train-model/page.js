@@ -1,56 +1,56 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 
 import Navbar from "@/components/nav/NavBar";
 import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
-import CategoryInput from "@/components/forms/CategoryInput";
-import InputBox from "@/components/forms/InputBox";
+import axios from "axios";
 
 const modelData = [
-  "DeBERTa-v3-base-mnli-fever-anli",
-  "facebook/bart-large-mnli",
+  {
+    model_name: "Support Vector Classifier",
+    model_description: "Constructs a hyperplane or set of hyperplanes in a high-dimensional space to separate different classes in the data.",
+  },
+  {
+    model_name: "Logistic Regression",
+    model_description: "Statistical method which models the probability of each sentiment class using a sigmoid function.",
+  },
+  {
+    model_name: "DBSCAN",
+    model_description: "Groups together points that are close to each other based on a distance measure (e.g., cosine similarity for text data)."
+  }
 ];
 
 export default function TrainModel({ params }) {
-  const [preprocessingSteps, setPreprocessingSteps] = useState([]);
   const [errors, setErrors] = useState({});
+  const [selectedModel, setSelectedModel] = useState(null);
 
-  const [formData, setFormData] = useState({
-    maxIterations: null,
-    numSamples: null,
-    selectedModel: null,
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     let validationErrors = validate();
     setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      let apiEndpoint =
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/train`;
+
+        toast.success("Job created")
+      try {
+        const response = await axios.post(apiEndpoint, selectedModel);
+        console.log(response)
+      } catch (error) {
+        toast.error("Error");
+        console.log(error);
+      }
+    }
   };
 
   const validate = () => {
     let errors = {};
 
-    if (!formData.selectedModel) {
+    if (!selectedModel) {
       errors.selectedModel = "Please select a model";
-    }
-    if (!preprocessingSteps) {
-      errors.preprocessingSteps = "Missing preprocessing steps";
-    }
-    if (!formData.maxIterations) {
-      errors.maxIterations = "Number of iterations is required";
-    }
-    if (!formData.numSamples) {
-      errors.numSamples = "Number of samples is required";
     }
     return errors;
   };
@@ -60,31 +60,29 @@ export default function TrainModel({ params }) {
       <Navbar />
       <div className="flex flex-row">
         <SentimentAnalysisSideNav params={params.projectId} />
-        <form className="ml-0 lg:ml-20 mt-32">
+        <form className="ml-0 lg:ml-20 mt-32" onSubmit={handleSubmit}>
           <p className="text-xl text-[#3FEABF] font-bold mb-8">
             Sentiment Analysis
           </p>
           <div className="flex flex-col gap-y-5">
             <div>
-              <p className="mb-2">Select Zero-Shot Model</p>
+              <p className="mb-2">Select Model</p>
               {modelData.length === 0 && <p>No models found</p>}
-              <div className="grid lg:grid-cols-2 gap-x-6 gap-y-1">
+              <div className="flex flex-row flex-wrap gap-x-4 gap-y-1">
                 {modelData.map((model, index) => (
                   <div
                     key={index}
-                    className={`flex flex-wrap border border-white border-opacity-50 w-72 items-center justify-center rounded-lg h-8 cursor-pointer mt-1 ${
-                      formData.selectedModel === model
+                    className={`flex flex-wrap border border-white border-opacity-50 w-72 rounded-lg cursor-pointer mt-1 p-4 ${
+                      selectedModel?.model_name === model.model_name
                         ? "bg-[#3FEABF] text-black"
                         : "hover:bg-[#3FEABF] hover:text-black"
                     }`}
                     onClick={() => {
-                      setFormData({
-                        ...formData,
-                        selectedModel: model,
-                      });
+                      setSelectedModel(model);
                     }}
                   >
-                    {model}
+                    <p className="font-bold mb-2">{model.model_name}</p>
+                    <p>{model.model_description}</p>
                   </div>
                 ))}
               </div>
@@ -92,30 +90,9 @@ export default function TrainModel({ params }) {
                 <p className="text-red-500 text-sm">{errors.selectedModel}</p>
               )}
             </div>
-            <CategoryInput
-              label="Preprocessing Steps"
-              categoryList={preprocessingSteps}
-              setCategoryList={setPreprocessingSteps}
-              error={errors.preprocessingSteps}
-            />
-            <InputBox
-              label="Maximum Iterations of Active Learning"
-              name="maxIterations"
-              value={formData.maxIterations}
-              onChange={handleChange}
-              error={errors.maxIterations}
-            />
-            <InputBox
-              label="Number of Samples for Manual Labelling"
-              name="numSamples"
-              value={formData.numSamples}
-              onChange={handleChange}
-              error={errors.numSamples}
-            />
             <button
               type="submit"
               className="flex my-4 py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
-              onClick={handleSubmit}
             >
               Train Model
             </button>
