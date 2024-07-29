@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import InputBox from "@/components/forms/InputBox";
+import { toast } from "react-hot-toast";
+
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import Navbar from "@/components/nav/NavBar";
+import InputBox from "@/components/forms/InputBox";
 import axios from "axios";
-import { toast } from "react-hot-toast";
 
 const models = [
   {

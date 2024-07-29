@@ -109,7 +109,7 @@ class Annotation(db.Model):
     dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
     confidence = db.Column(db.Float, default=0.0, nullable=False)
 
-    def to_dict(self):
+    def process_bbox(self):
         bboxes = []
         if self.boxes and self.labels:
             for box, label in zip(self.boxes, self.labels):
@@ -127,6 +127,15 @@ class Annotation(db.Model):
             "filename": self.filename,
             "image_id": self.image_id,
             "bboxes": bboxes,
+            "dataset_id": self.dataset_id
+        }
+
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "filename": self.filename,
+            "image_id": self.image_id,
             "boxes": self.boxes,
             "labels": self.labels,
             "area": self.area,
@@ -165,7 +174,7 @@ class History(db.Model):
     f1 = db.Column(db.Float, nullable=False)
     auc = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     def to_dict(self):
         return {

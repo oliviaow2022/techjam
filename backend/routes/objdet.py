@@ -1,5 +1,4 @@
 import os, time
-
 import uuid
 import zipfile
 import torch
@@ -96,7 +95,7 @@ def return_batch(project_id):
 
         annotations.extend(top_up_annotations)
         
-    data_list = [instance.to_dict() for instance in annotations]
+    data_list = [instance.process_bbox() for instance in annotations]
 
     return jsonify(data_list), 200
 
@@ -106,6 +105,9 @@ def label_data(annotation_id):
     # format from frontend: [{x1: 74, y1: 62, x2: 401, y2: 365, label: 'bus'}]
     data = request.json.get('annotations')
     image_display_ratio = request.json.get('image_display_ratio')
+
+    if not image_display_ratio:
+        image_display_ratio = 1
 
     annotation = Annotation.query.get_or_404(annotation_id)
 

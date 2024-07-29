@@ -90,10 +90,10 @@ export default function CreateObjectDetectionProject() {
         console.log(uploadResponse);
 
         if (createResponse.status === 201 && uploadResponse.status === 201) {
-          toast.success("Success");
-          /* router.push(
+          toast.success("Job Created");
+          router.push(
             `/object-detection/${createResponse.data.project.id}/label`
-          ); */
+          );
         }
       } catch (error) {
         console.log(error);
