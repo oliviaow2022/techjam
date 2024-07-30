@@ -2,7 +2,6 @@ import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-
 class Config:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -11,5 +10,5 @@ class Config:
     CELERY=dict(
         broker_url=os.getenv('REDIS_ENDPOINT'),
         result_backend=os.getenv('REDIS_ENDPOINT'),
-        task_ignore_result=False,
-    ),
+        task_ignore_result=False
+    )

@@ -26,12 +26,23 @@ pip install celery redis
 pip install git+https://github.com/modAL-python/modAL.git
 ```
 
-### Running
 make database and add starting data
 ```
 flask seed
 ```
 
+### Setting up Celery with Redis
+install redis [https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/]
+start the redis server on localhost
+```
+redis-server
+```
+start a celery worker process
+```
+celery -A app.celery_app worker --loglevel=debug
+```
+
+### Running
 ```
 flask run --debug 
 ```
@@ -40,7 +51,3 @@ If access to localhost is denied:
 ```
 python app.py
 ```
-
-https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
-
-https://github.com/munniomer/pytorch-tutorials/blob/master/beginner_source/finetuning_torchvision_models_tutorial.py
