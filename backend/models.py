@@ -67,7 +67,7 @@ class Dataset(db.Model):
             "name": self.name,
             "project_id": self.project_id,
             "num_classes": self.num_classes,
-            "class_to_label_mapping": json.dumps(self.class_to_label_mapping) if isinstance(self.class_to_label_mapping, str) else self.class_to_label_mapping,
+            "class_to_label_mapping": self.class_to_label_mapping,
             "project_type": project_type
         }
 

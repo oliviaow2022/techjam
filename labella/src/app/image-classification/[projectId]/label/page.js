@@ -85,21 +85,24 @@ export default function Label({ params }) {
       if (response.status === 200) {
         setCurrentIndex((currentIndex) => (currentIndex += 1));
         toast.success("Label updated");
+        const updatedImages = images.map((img, idx) =>
+          idx === currentIndex ? { ...img, labels: classInteger } : img
+        );
+        setImages(updatedImages);
       }
     } catch (err) {
       console.log(err);
     }
   };
   
-
   const handleLabelAdditionMulti = async (classInteger) => {
     const list = classInteger.split("_")
     const categoryIndex = list[0]
     const categoryInteger = list[1]
-    const templist = [...multilabelslist]
-    templist[categoryIndex] = categoryInteger
-    setMultilabelslist(templist)
-    const formattedClassInteger = templist.join(',');
+    const updatedLabelsList = [...multilabelslist]
+    updatedLabelsList[categoryIndex] = categoryInteger
+    setMultilabelslist(updatedLabelsList)
+    const formattedClassInteger = updatedLabelsList.join(',');
     
     if (/^\d+(,\d+)*$/.test(formattedClassInteger)) {
       // Send updated labels to the backend
@@ -112,6 +115,10 @@ export default function Label({ params }) {
         });
         if (response.status === 200) {
           toast.success("Labels updated");
+          const updatedImages = images.map((img, idx) =>
+            idx === currentIndex ? { ...img, labels: updatedLabelsList } : img
+          );
+          setImages(updatedImages);
         }
       } catch (err) {
         console.error('Error updating labels:', err);
@@ -165,6 +172,8 @@ export default function Label({ params }) {
                               classInteger={`${categoryIndex}_${key}`}
                               name={value}
                               handleOptionChange={handleLabelAdditionMulti}
+                              selectedOption={images[currentIndex]}
+                              isMulticlass={true}
                             />
                           ))}
                         </div>
@@ -180,6 +189,8 @@ export default function Label({ params }) {
                         classInteger={key}
                         name={value}
                         handleOptionChange={handleLabelAdditionSingle}
+                        selectedOption={images[currentIndex]}
+                        isMulticlass={false}
                       />
                     )
                   )}

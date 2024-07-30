@@ -120,6 +120,15 @@ def return_batch_for_labelling(project_id):
         DataInstance.dataset_id == dataset.id,
         DataInstance.manually_processed == False
     ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
+    
+    if len(data_instances) < batch_size:
+        top_up_count = batch_size - len(data_instances)
+        top_up_data_instances = DataInstance.query.filter(
+            DataInstance.dataset_id == dataset.id,
+            DataInstance.manually_processed == True
+        ).order_by(DataInstance.entropy.desc()).limit(top_up_count).all()
+        data_instances.extend(top_up_data_instances)
+    
     data_list = [instance.to_dict() for instance in data_instances]
     print(data_list)
     return jsonify(data_list), 200
