@@ -1,8 +1,8 @@
 'use client'
 import React, { useState } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/NavBar';
-import InputBox from "@/components/InputBox";
+import Navbar from '@/components/nav/NavBar';
+import InputBox from "@/components/forms/InputBox";
 import InputPassword from '@/components/InputPassword';
 import axios from 'axios';
 import { useRouter } from 'next/navigation'

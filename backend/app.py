@@ -15,6 +15,7 @@ from routes.model import model_routes
 from routes.history import history_routes
 from routes.epoch import epoch_routes
 from routes.general import general_routes
+from routes.senti import senti_routes
 from dotenv import load_dotenv
 from celery_worker import celery_init_app
 import os
@@ -30,6 +31,7 @@ app.register_blueprint(data_instance_routes, url_prefix='/instance')
 app.register_blueprint(model_routes, url_prefix='/model')
 app.register_blueprint(history_routes, url_prefix='/history')
 app.register_blueprint(epoch_routes, url_prefix='/epoch')
+app.register_blueprint(senti_routes, url_prefix='/senti')
 app.register_blueprint(general_routes)
 
 app.config.from_object(Config)
@@ -62,46 +64,22 @@ def seed():
     db.session.add(user)
     db.session.commit()
 
-    ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="1")
-    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="1")
+    ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="Single Label Classification")
+    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="Single Label Classification")
     cifar10 = Project(name="Cifar-10", user_id=user.id, type="1")
     db.session.add_all([ants_bees, fashion_mnist, cifar10])
     db.session.commit()
 
     ants_bees_ds = Dataset(name="Ants and Bees", project_id=ants_bees.id, num_classes=2, class_to_label_mapping={0: 'ants', 1: 'bees'})
-    fashion_mnist_ds = Dataset(name="fashion-mnist", project_id=fashion_mnist.id, num_classes=10, class_to_label_mapping={
-            0: 'T-shirt/top',
-            1: 'Trouser',
-            2: 'Pullover',
-            3: 'Dress',
-            4: 'Coat',
-            5: 'Sandal',
-            6: 'Shirt',
-            7: 'Sneaker',
-            8: 'Bag',
-            9: 'Ankle Boot'
-        })
-    cifar10_ds = Dataset(name="cifar-10", project_id=cifar10.id, num_classes=10, class_to_label_mapping={
-            0: 'plane',
-            1: 'car',
-            2: 'bird',
-            3: 'cat',
-            4: 'deer',
-            5: 'dog',
-            6: 'frog',
-            7: 'horse',
-            8: 'ship',
-            9: 'truck'
-        })
-    db.session.add_all([ants_bees_ds, fashion_mnist_ds, cifar10_ds])
+    db.session.add(ants_bees_ds)
     db.session.commit()
 
-    resnet18 = Model(name='resnet18', project_id=ants_bees.id)
-    densenet121 = Model(name='densenet121', project_id=ants_bees.id)
-    alexnet = Model(name='alexnet', project_id=ants_bees.id)
-    convnext_base = Model(name='convnext_base', project_id=ants_bees.id)
-    resnet18_2 = Model(name='resnet18', project_id=fashion_mnist.id)
-    resnet18_3 = Model(name='resnet18', project_id=cifar10.id)
+    resnet18 = Model(name='ResNet-18', project_id=ants_bees.id)
+    densenet121 = Model(name='DenseNet-121', project_id=ants_bees.id)
+    alexnet = Model(name='AlexNet', project_id=ants_bees.id)
+    convnext_base = Model(name='ConvNext Base', project_id=ants_bees.id)
+    resnet18_2 = Model(name='ResNet-18', project_id=fashion_mnist.id)
+    resnet18_3 = Model(name='ResNet-18', project_id=cifar10.id)
     db.session.add_all([resnet18, densenet121, alexnet, convnext_base, resnet18_2, resnet18_3])
     db.session.commit()
 

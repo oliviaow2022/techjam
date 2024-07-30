@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import db, Dataset, Project, DataInstance
+from models import db, Model, Dataset, Project, DataInstance
 import pandas as pd
 from flasgger import swag_from
 import json
@@ -41,6 +41,7 @@ def create_dataset():
     project_id = request.json.get('project_id')
     num_classes = request.json.get('num_classes')
     class_to_label_mapping = request.json.get('class_to_label_mapping')
+    project_type = request.json.get('project_type')
 
     num_classes, class_to_label_mapping = get_dataset_config(name, num_classes, class_to_label_mapping)
 
@@ -48,8 +49,7 @@ def create_dataset():
         return jsonify({"error": "Bad Request", "message": "Missing fields"}), 400
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
-
-    dataset = Dataset(name=name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping))
+    dataset = Dataset(name=name, project_id=project.id, num_classes=num_classes, class_to_label_mapping=json.dumps(class_to_label_mapping), project_type=project_type)
     db.session.add(dataset)
     db.session.commit()
 
@@ -108,9 +108,10 @@ def return_batch_for_labelling(project_id):
 
     if not batch_size:
         batch_size = 20
-
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
+
+    print(dataset)
 
     if not dataset:
         return jsonify({'error': 'Dataset not found'}), 404
@@ -119,7 +120,17 @@ def return_batch_for_labelling(project_id):
         DataInstance.dataset_id == dataset.id,
         DataInstance.manually_processed == False
     ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
+    
+    if len(data_instances) < batch_size:
+        top_up_count = batch_size - len(data_instances)
+        top_up_data_instances = DataInstance.query.filter(
+            DataInstance.dataset_id == dataset.id,
+            DataInstance.manually_processed == True
+        ).order_by(DataInstance.entropy.desc()).limit(top_up_count).all()
+        data_instances.extend(top_up_data_instances)
+    
     data_list = [instance.to_dict() for instance in data_instances]
+    print(data_list)
     return jsonify(data_list), 200
 
 
@@ -151,7 +162,7 @@ def get_dataset(project_id):
     if not dataset:
         return jsonify({'error': 'Dataset not found'}), 404
     
-    return jsonify(dataset.to_dict()), 200
+    return jsonify({'dataset': dataset.to_dict(), 'project': project.to_dict()}), 200
 
 
 @dataset_routes.route('/<int:id>/upload', methods=['POST'])
@@ -222,7 +233,8 @@ def upload_files(id):
 
             local_filepath = os.path.join(root, file_name)
             unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file_name)[1]}"
-            s3_filepath = os.path.join(project.prefix, unique_filename)
+            # s3_filepath = os.path.join(project.prefix, unique_filename)
+            s3_filepath = f'{project.prefix}/{unique_filename}'
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
@@ -237,3 +249,24 @@ def upload_files(id):
     db.session.commit()
 
     return jsonify({'message': 'Files successfully uploaded into dataset'}), 201
+
+
+@dataset_routes.route('/update_class_to_label_mapping/<int:dataset_id>', methods=['PUT'])
+def update_class_to_label_mapping(dataset_id):
+    data = request.get_json()
+    class_to_label_mapping = data.get('class_to_label_mapping')
+
+    if class_to_label_mapping is None:
+        return jsonify({"error": "class_to_label_mapping is required"}), 400
+
+    dataset = Dataset.query.get(dataset_id)
+    if dataset is None:
+        return jsonify({"error": "Dataset not found"}), 404
+
+    try:
+        dataset.class_to_label_mapping = class_to_label_mapping
+        db.session.commit()
+        return jsonify(dataset.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
