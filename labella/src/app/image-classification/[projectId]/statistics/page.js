@@ -40,25 +40,44 @@ export default function Statistics({ params }) {
     try {
       toast.success("Downloading file");
       let response = await axios.get(
-        process.env.NEXT_PUBLIC_API_ENDPOINT +
-          `/model/${modelId}/download`,
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
         }
       );
 
-      console.log(response)
+      console.log(response);
       if (response.status === 200) {
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', `model.pth`); // Set the file name here
+        link.setAttribute("download", `model.pth`); // Set the file name here
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
+    }
+  };
+
+  const handleDownloadDataset = async (projectId) => {
+    try {
+      // Make GET request to backend endpoint
+      const response = await axios.get(process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${projectId}/download`, {
+        responseType: "blob", // Important to handle file download
+      });
+
+      // Create a URL for the downloaded file
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "data_instances.csv"); // Specify file name
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Error downloading CSV:", error);
     }
   };
 
@@ -76,38 +95,57 @@ export default function Statistics({ params }) {
             <p className="text-xl text-[#FF52BF] font-bold mb-8">
               Image Classification
             </p>
-            {historyData && <div className="flex flex-row items-center">
-              {historyIndex > 0 && <button
-                onClick={() => setHistoryIndex((prevIndex) => prevIndex - 1)}
-              >
-                <Arrow direction="left" />
-              </button>}
-              <p className="px-3">{historyIndex + 1}</p>
-              {historyIndex < historyData?.max_index && <button
-                onClick={() => setHistoryIndex((prevIndex) => prevIndex + 1)}
-              >
-                <Arrow direction="right" />
-              </button>}
-            </div>}
+            {historyData && (
+              <div className="flex flex-row items-center">
+                {historyIndex > 0 && (
+                  <button
+                    onClick={() =>
+                      setHistoryIndex((prevIndex) => prevIndex - 1)
+                    }
+                  >
+                    <Arrow direction="left" />
+                  </button>
+                )}
+                <p className="px-3">{historyIndex + 1}</p>
+                {historyIndex < historyData?.max_index && (
+                  <button
+                    onClick={() =>
+                      setHistoryIndex((prevIndex) => prevIndex + 1)
+                    }
+                  >
+                    <Arrow direction="right" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           {!historyData && (
             <p className="font-bold mb-2">No models have been trained yet!</p>
           )}
           {historyData && (
             <div>
-              <TaskMonitor resultId={historyData.history?.task_id} onSuccess={handleTaskSuccess} />
-              <div className="flex flex-row justify-between mb-2">
-                <p className="font-bold mb-2">
-                {historyData.model?.name} (
-                {new Date(historyData.history?.created_at).toLocaleString()})
-                </p>
+              <TaskMonitor
+                resultId={historyData.history?.task_id}
+                onSuccess={handleTaskSuccess}
+              />
+              <div className="flex flex-row gap-2 mb-8">
                 <button
                   className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
                   onClick={() => handleDownloadModel(historyData.model?.id)}
                 >
                   Download Model
                 </button>
+                <button
+                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
+                  onClick={() => handleDownloadDataset(params.projectId)}
+                >
+                  Download Dataset
+                </button>
               </div>
+              <p className="font-bold mb-2">
+                {historyData.model?.name} (
+                {new Date(historyData.history?.created_at).toLocaleString()})
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">Accuracy</p>
