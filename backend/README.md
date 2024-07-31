@@ -1,4 +1,4 @@
-### Setting up
+## Setting up
 create virtual environment
 ```
 python3 -m venv .venv
@@ -36,7 +36,7 @@ run the backend
 python app.py
 ```
 
-### Quick Backend Crash Course
+## Quick Backend Crash Course
 example .env
 ```
 S3_BUCKET=
@@ -76,7 +76,7 @@ General flow of the backend
 7. **User can download model / dataset** (model.py / dataset.py
 
 
-### Setting up Celery with Redis
+## Setting up Celery with Redis
 ensure celery and redis are installed 
 ```
 pip install celery redis
@@ -107,7 +107,7 @@ start a celery worker process on MACOS
 celery -A app.celery_app worker --loglevel=debug --pool threads
 ```
 
-### Quick Celery Crash Course
+## Quick Celery Crash Course
 Starting a background task:
 1. **long_running_task in tasks.py**: Add the decorator @shared_task to the top of the function. 
     - If you use bind=True, it means that you need to pass in self as an argument, and this allows you to keep updating the state of the task using self.update_state while it's still running
@@ -122,13 +122,3 @@ How to use this in training models:
 1. **run_training in model.py**: Add the decorator @shared_task to your training function (not the api route)
 2. **new_training_job in model.py**: In the API route function, use <training_function_name>.delay() to start running the task in celery. Save the task ID in the task_id column under History in the database and return the task ID to the frontend.
 3. **socketio in app.py**: Use AsyncResult in the websocket to get the status updates of the task on the frontend. Note that only ONE task is monitored at a time per user, coded using the dictionary current_tasks.
-
-### Running
-```
-flask run --debug 
-```
-
-If access to localhost is denied:
-```
-python app.py
-```
