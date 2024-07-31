@@ -122,7 +122,8 @@ def train_model(self, model, model_dict, project_dict, train_dataloader, val_dat
                 best_acc = val_acc
                 torch.save(model.state_dict(), best_model_params_path)
             
-            self.update_state(state="PROGRESS", meta={'epoch': epoch})
+            print('ID', self.request.id)
+            self.update_state(task_id=self.request.id, state="PROGRESS", meta={'epoch': epoch, 'num_epochs': NUM_EPOCHS})
 
         time_elapsed = time.time() - since
         print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
