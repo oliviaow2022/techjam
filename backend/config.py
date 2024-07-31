@@ -1,5 +1,7 @@
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
@@ -10,5 +12,6 @@ class Config:
     CELERY=dict(
         broker_url=os.getenv('REDIS_ENDPOINT'),
         result_backend=os.getenv('REDIS_ENDPOINT'),
-        task_ignore_result=False
+        task_ignore_result=False,
+        task_track_started=True
     )

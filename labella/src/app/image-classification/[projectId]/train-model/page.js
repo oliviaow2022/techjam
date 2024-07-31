@@ -58,7 +58,7 @@ export default function TrainModelButton({ params }) {
         console.log(response);
 
         if (response.status === 200) {
-          toast.success("Job created");
+          toast.success(`Job ID ${response.data.task_id} created`);
         }
       } catch (err) {
         console.log(err);

@@ -32,7 +32,14 @@ flask seed
 ```
 
 ### Setting up Celery with Redis
+ensure celery and redis are installed 
+```
+pip install celery redis
+```
+
 install redis [https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/]
+
+
 start the redis server on localhost
 ```
 redis-server
@@ -40,6 +47,16 @@ redis-server
 start a celery worker process
 ```
 celery -A app.celery_app worker --loglevel=debug
+```
+
+start a celery worker process on WINDOWS
+```
+celery -A app.celery_app worker --loglevel=debug --pool=solo
+```
+
+start a celery worker process on MACOS
+```
+celery -A app.celery_app worker --loglevel=debug --pool threads
 ```
 
 ### Running

@@ -1,12 +1,16 @@
 import click
 import csv
+import os
 
+from dotenv import load_dotenv
 from create_app import create_app
 from flask.cli import with_appcontext
 from models import db, User, Project, Dataset, DataInstance, Model
 from flask import jsonify, request
 from celery.result import AsyncResult
 from services.tasks import long_running_task
+
+load_dotenv()
 
 flask_app, celery_app = create_app()
 flask_app.app_context().push()

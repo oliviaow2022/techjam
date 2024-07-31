@@ -118,13 +118,14 @@ class Model(db.Model):
 
 class History(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    accuracy = db.Column(db.Float, nullable=False)
-    precision = db.Column(db.Float, nullable=False)
-    recall = db.Column(db.Float, nullable=False)
-    f1 = db.Column(db.Float, nullable=False)
+    accuracy = db.Column(db.Float, nullable=True)
+    precision = db.Column(db.Float, nullable=True)
+    recall = db.Column(db.Float, nullable=True)
+    f1 = db.Column(db.Float, nullable=True)
     auc = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    task_id = db.Column(db.String(256), nullable=True)
 
     def to_dict(self):
         return {
@@ -134,7 +135,8 @@ class History(db.Model):
             "recall": self.recall,
             "f1": self.f1,
             "auc": self.auc,
-            "created_at": self.created_at
+            "created_at": self.created_at,
+            "task_id": self.task_id
         }
     
     
