@@ -5,9 +5,11 @@ import torch
 
 from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify
-from models import db, Annotation, Project, Dataset
+from models import db, Annotation, Project, Dataset, Model
 from services.S3ImageDataset import s3, ObjDetDataset
 from services.objdet import get_model_instance, split_train_data, get_data_loader
+from services.model import run_training, run_labelling_using_model
+import threading
 
 objdet_routes = Blueprint('objdet', __name__)
 
@@ -141,68 +143,91 @@ def label_data(annotation_id):
 
 
 @objdet_routes.route('<int:project_id>/train', methods=['POST'])
-def train_model(project_id):
+def new_training_job(project_id):
+    print('running training...')
+
     project = Project.query.get_or_404(project_id, description="Project ID not found")
+
+    model_name = request.json.get('model_name')
+    model_description = request.json.get('model_description')
+    num_epochs = int(request.json.get('num_epochs'))
+    train_test_split = float(request.json.get('train_test_split'))
+    batch_size = int(request.json.get('batch_size'))
+
+    if not (model_name or num_epochs or train_test_split or batch_size):
+        return jsonify({'Message': 'Missing required fields'}), 404
+
+    # check if model with the same architecture already exists
+    model = Model.query.filter_by(name=model_name, project_id=project.id).first()
+    if not model:
+        model = Model(name=model_name, project_id=project_id, description=model_description)
+        db.session.add(model)
+        db.session.commit()
+        
     dataset = Dataset.query.filter_by(project_id=project.id).first()
     annotations = Annotation.query.filter_by(dataset_id=dataset.id).with_entities(Annotation.id).all()
     annotation_ids_list = [id[0] for id in annotations]
-
     dataset = ObjDetDataset(annotation_ids_list, project.bucket, project.prefix)
     dataloader = get_data_loader(dataset)
-    train_loader, val_loader = split_train_data(dataloader)
+    train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
 
-    model = get_model_instance(num_classes=dataset.num_classes)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    model.to(device)
+    from app import app
+    app_context = app.app_context()
 
-    since = time.time()
-    # input from user
-    num_epochs = 10 
+    training_thread = threading.Thread(target=run_training, args=(train_loader, val_loader, app_context, project, dataset, model, num_epochs, train_test_split, batch_size))
+    training_thread.start()
 
-    for epoch in range(num_epochs):
-        model.train()
-        running_loss = 0.0
+    return jsonify({'message': 'Training started'}), 200
 
-        for images, targets in train_loader:
-            images = list(image.to(device) for image in images)
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+    # model.to(device)
 
-            optimizer.zero_grad()
-            loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-            losses.backward()
-            optimizer.step()
+    # since = time.time()
+    # # input from user
+    # num_epochs = 10 
 
-            running_loss += losses.item()
+    # for epoch in range(num_epochs):
+    #     model.train()
+    #     running_loss = 0.0
 
-        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader)}")
+    #     for images, targets in train_loader:
+    #         images = list(image.to(device) for image in images)
+    #         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        # Validation loop
-        model.eval()
-        val_loss = 0.0
-        with torch.no_grad():
-            for images, targets in val_loader:
-                images = list(image.to(device) for image in images)
-                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+    #         optimizer.zero_grad()
+    #         loss_dict = model(images, targets)
+    #         losses = sum(loss for loss in loss_dict.values())
+    #         losses.backward()
+    #         optimizer.step()
 
-                loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
-                val_loss += losses.item()
+    #         running_loss += losses.item()
 
-        print(f"Validation Loss: {val_loss / len(val_loader)}")
+    #     print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader)}")
 
-    # Save the trained model
-    model_save_path = os.path.join('./models', f'{project_id}_model.pth')
-    model_saved = torch.save(model.state_dict(), model_save_path)
+    #     # Validation loop
+    #     model.eval()
+    #     val_loss = 0.0
+    #     with torch.no_grad():
+    #         for images, targets in val_loader:
+    #             images = list(image.to(device) for image in images)
+    #             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-    time_elapsed = time.time() - since
-    print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    s3.upload_file(project.bucket, model_save_path)
+    #             loss_dict = model(images, targets)
+    #             losses = sum(loss for loss in loss_dict.values())
+    #             val_loss += losses.item()
+
+    #     print(f"Validation Loss: {val_loss / len(val_loader)}")
+
+    # # Save the trained model
+    # model_save_path = os.path.join('./models', f'{project_id}_model.pth')
+    # model_saved = torch.save(model.state_dict(), model_save_path)
+
+    # time_elapsed = time.time() - since
+    # print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+    # s3.upload_file(project.bucket, model_save_path)
     
-    db.session.add(model_saved)
-    db.session.commit()
-    print('model saved to', model_save_path)
+    # db.session.add(model_saved)
+    # db.session.commit()
+    # print('model saved to', model_save_path)
 
     return jsonify({"message": "Model trained successfully", "model_path": model_save_path}), 200
 
