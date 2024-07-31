@@ -5,7 +5,8 @@ from flask import Blueprint, request, jsonify, send_file
 from models import db, Model, Project, Dataset, History
 from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
-from S3ImageDataset import s3
+import threading
+from services.S3ImageDataset import s3
 from tempfile import TemporaryDirectory
 from botocore.exceptions import ClientError
 

@@ -255,27 +255,13 @@ def run_training(self, project_dict, dataset_dict, model_dict, history_dict, NUM
     except Exception as error:
         print(error)
 
+
 def run_labelling_using_model(project_dict, dataset_dict, model_dict):
 
-    # initialise model
-    if model_dict['name'] == 'ResNet-18':
-        ml_model = torchvision.models.resnet18(weights='DEFAULT')
-        num_ftrs = ml_model.fc.in_features
-        ml_model.fc = torch.nn.Linear(num_ftrs, dataset_dict['num_classes'])
-    elif model_dict['name'] == 'DenseNet-121':
-        ml_model = torchvision.models.densenet121(weights='DEFAULT')
-        num_ftrs = ml_model.classifier.in_features
-        ml_model.classifier = torch.nn.Linear(num_ftrs, dataset_dict['num_classes'])
-    elif model_dict['name'] == 'AlexNet':
-        ml_model = torchvision.models.alexnet(weights='DEFAULT')
-        num_ftrs = ml_model.classifier[6].in_features
-        ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset_dict['num_classes'])
-    elif model_dict['name'] == 'ConvNext Base':
-        ml_model = torchvision.models.convnext_base(weights='DEFAULT')
-        num_ftrs = ml_model.classifier[2].in_features
-        ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset_dict['num_classes'])
+    ml_model = get_image_classification_model(model_dict['name'], dataset_dict['num_classes'])
 
     # load in weights
+    print(project_dict['bucket'], model_dict['saved'])
     model_weights = download_weights_from_s3(project_dict['bucket'], model_dict['saved'])
     ml_model.load_state_dict(torch.load(BytesIO(model_weights)))
     ml_model.eval()

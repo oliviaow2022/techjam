@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import io from "socket.io-client";
 
-const TaskMonitor = ({ resultId }) => {
+const TaskMonitor = ({ resultId, onSuccess }) => {
   const [taskInfo, setTaskInfo] = useState(null);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const socket = io(process.env.NEXT_PUBLIC_API_ENDPOINT);
@@ -14,12 +13,14 @@ const TaskMonitor = ({ resultId }) => {
     // Listen for updates
     socket.on("task_update", (data) => {
       setTaskInfo(data);
-      console.log(data)
+      if (data.state === "SUCCESS") {
+        onSuccess();
+      }
     });
 
     // Handle errors
     socket.on("error", (err) => {
-      setError(err.message);
+      console.log(err.message);
     });
 
     // Clean up on component unmount
@@ -37,31 +38,29 @@ const TaskMonitor = ({ resultId }) => {
 
   return (
     <div>
-      {error && <p>Error: {error}</p>}
-      {taskInfo ? (
+      {taskInfo && (
         <div className="mb-8">
           <p>Job ID: {taskInfo.id}</p>
           <p>State: {taskInfo.state}</p>
-          {taskInfo.state === 'PROGRESS' && (
-          <div className="w-full bg-gray-200 rounded-full h-4 mt-2">
-            <div
-              style={{
-                width: `${calculateProgress(
+          {taskInfo.state === "PROGRESS" && (
+            <div className="w-full bg-gray-200 rounded-full h-4 mt-2">
+              <div
+                style={{
+                  width: `${calculateProgress(
+                    taskInfo.info.epoch,
+                    taskInfo.info.num_epochs
+                  )}%`,
+                }}
+                className="bg-green-500 h-full rounded-full text-center text-white text-xs leading-4"
+              >
+                {`${calculateProgress(
                   taskInfo.info.epoch,
                   taskInfo.info.num_epochs
-                )}%`,
-              }}
-              className="bg-green-500 h-full rounded-full text-center text-white text-xs leading-4"
-            >
-              {`${calculateProgress(
-                taskInfo.info.epoch,
-                taskInfo.info.num_epochs
-              )}%`}
+                )}%`}
+              </div>
             </div>
-          </div>)}
+          )}
         </div>
-      ) : (
-        <p>Loading...</p>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const CategoryInput = ({ label, categoryList, setCategoryList, error }) => {
+const CategoryInput = ({ label, categoryList, setCategoryList, error, color }) => {
   const [inputValue, setInputValue] = useState("");
 
   const handleRemoveCategory = (categoryToRemove) => {
@@ -31,7 +31,7 @@ const CategoryInput = ({ label, categoryList, setCategoryList, error }) => {
         {categoryList.map((category, index) => (
           <span
             key={index}
-            className="flex justify-center items-center bg-[#3FEABF] rounded-lg px-2 text-black"
+            className={`flex justify-center items-center ${color} rounded-lg px-2 text-black`}
           >
             {category}
             <button

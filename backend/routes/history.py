@@ -25,7 +25,7 @@ def get_project_history(project_id):
     history_list = History.query.filter(History.model_id.in_(model_ids)).order_by(History.created_at.desc()).all()
 
     if index < 0 or index >= len(history_list):
-        return jsonify({'error': 'Invalid index'})
+        return jsonify({'error': 'Invalid index'}), 400
     
     history = history_list[index]
 
