@@ -24,6 +24,7 @@ pip install Flask-Cors
 pip install python-dotenv
 pip install celery redis
 pip install git+https://github.com/modAL-python/modAL.git
+pip install flask-socketio
 ```
 
 make database and add starting data

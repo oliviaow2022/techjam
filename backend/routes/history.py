@@ -14,27 +14,31 @@ def get_all_history():
 
 @history_routes.route('/<int:project_id>/info', methods=['GET'])
 def get_project_history(project_id):
+    index = int(request.args.get('index', 0))
+
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     models = Model.query.filter_by(project_id=project.id).all()
 
     model_ids = [model.id for model in models]
         
     # Retrieve history objects where model_id is in the list of model IDs
-    history_list = History.query.filter(History.model_id.in_(model_ids)).all()
-    
-    history_with_epochs = []
-    for history in history_list:
-        epochs = Epoch.query.filter_by(history_id=history.id).all()
-        epoch_list = [epoch.to_dict() for epoch in epochs]
-        model = Model.query.get(history.model_id)
+    history_list = History.query.filter(History.model_id.in_(model_ids)).order_by(History.created_at.desc()).all()
 
-        history_with_epochs.append({
-            'history': history.to_dict(),
-            'model': model.to_dict(),
-            'epochs': epoch_list
-        })
+    if index < 0 or index >= len(history_list):
+        return jsonify({'error': 'Invalid index'})
     
-    return jsonify(history_with_epochs), 200
+    history = history_list[index]
+
+    epochs = Epoch.query.filter_by(history_id=history.id).all()
+    epoch_list = [epoch.to_dict() for epoch in epochs]
+    model = Model.query.get(history.model_id)
+    
+    return jsonify({
+        'history': history.to_dict(),
+        'model': model.to_dict(),
+        'epochs': epoch_list,
+        'max_index': len(history_list)
+    }), 200
 
 
 @history_routes.route('/<int:id>/info', methods=['GET'])

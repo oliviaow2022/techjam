@@ -1,6 +1,8 @@
 import click
 import csv
 import os
+import threading
+import time
 
 from dotenv import load_dotenv
 from create_app import create_app
@@ -9,10 +11,11 @@ from models import db, User, Project, Dataset, DataInstance, Model
 from flask import jsonify, request
 from celery.result import AsyncResult
 from services.tasks import long_running_task
+from flask_socketio import emit
 
 load_dotenv()
 
-flask_app, celery_app = create_app()
+flask_app, celery_app, socketio = create_app()
 flask_app.app_context().push()
 
 @flask_app.get("/trigger_task")
@@ -22,6 +25,7 @@ def start_task() -> dict[str, object]:
     result = long_running_task.delay(int(iterations))
     return {"result.id": result.id}
 
+
 @flask_app.get("/get_result")
 def task_result() -> dict[str, object]:
     result_id = request.args.get('result_id')
@@ -30,14 +34,61 @@ def task_result() -> dict[str, object]:
     return {
         "id": result.id,
         "state":  result.state,
-        "value": result.result if result.ready() else None,
         "current": str(result.info),
     }
+
+# Dictionary to keep track of the current task (ONLY ONE) being monitored for each client
+current_tasks = {}
+
+def monitor_task(result_id, sid):
+    while True:
+        result = AsyncResult(result_id)
+        socketio.emit('task_update', {
+            "id": result.id,
+            "state": result.state,
+            "info": result.info,
+        }, room=sid)
+        if result.state in ('SUCCESS', 'FAILURE'):
+            break
+        time.sleep(2)
+    # Final state
+    socketio.emit('task_update', {
+            "id": result.id,
+            "state": result.state,
+            "info": result.info,
+        }, room=sid)
+
+# WebSocket event for connecting
+@socketio.on('connect')
+def handle_connect():
+    emit('Client connected')
+
+
+# WebSocket event for disconnecting
+@socketio.on('disconnect')
+def handle_disconnect():
+    emit('Client disconnected')
+
+
+# WebSocket event for monitoring task result
+@socketio.on('monitor_task')
+def handle_monitor_task(data):
+    result_id = data.get('result_id')
+    sid = request.sid
+    if result_id:
+        if sid in current_tasks:
+            current_tasks.pop(sid, None)
+        
+        current_tasks[sid] = result_id
+        threading.Thread(target=monitor_task, args=(result_id, sid)).start()
+    else:
+        emit('error', {'message': 'Missing result_id'})
 
 
 @flask_app.route('/')
 def hello_world():
    return jsonify({"message": "Welcome to the API!"})
+
 
 @flask_app.cli.command('seed')
 @with_appcontext
@@ -93,4 +144,4 @@ def seed():
 
 
 if __name__ == "__main__":
-    flask_app.run(debug=True, port=5001)
+    socketio.run(flask_app, debug=True, port=5001)

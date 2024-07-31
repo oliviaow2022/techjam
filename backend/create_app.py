@@ -1,5 +1,6 @@
 import os
 
+from flask_socketio import SocketIO
 from flask import Flask
 from flask_cors import CORS
 from config import Config
@@ -47,6 +48,7 @@ def create_app() -> Flask:
     jwt = JWTManager(app)
     celery_app = celery_init_app(app)
     celery_app.set_default()
+    socketio = SocketIO(app, cors_allowed_origins="*")
 
     swagger_config = {
         'swagger': '2.0',
@@ -70,4 +72,4 @@ def create_app() -> Flask:
     app.register_blueprint(senti_routes, url_prefix='/senti')
     app.register_blueprint(general_routes)
 
-    return app, celery_app
+    return app, celery_app, socketio
