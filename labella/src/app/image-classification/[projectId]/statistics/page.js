@@ -50,7 +50,7 @@ export default function Statistics({ params }) {
               >
                 <Arrow direction="left" />
               </button>}
-              <p className="px-3">{historyIndex + 1}</p>
+              {historyData && <p className="px-3">{historyIndex + 1}</p>}
               {historyIndex < historyData?.max_index && <button
                 onClick={() => setHistoryIndex((prevIndex) => prevIndex + 1)}
               >
