@@ -119,7 +119,6 @@ export default function Label({ params }) {
             idx === currentIndex ? { ...img, labels: updatedLabelsList } : img
           );
           setImages(updatedImages);
-          console.log("uuuu",updatedLabelsList)
         }
       } catch (err) {
         console.error('Error updating labels:', err);

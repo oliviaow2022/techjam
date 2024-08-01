@@ -11,22 +11,10 @@ install dependencies
 ```
 pip install -r requirements.txt
 ```
-installed dependencies
+additional dependencies
 ```
-pip install flask
-pip install flask-sqlalchemy
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-pip install pandas
-pip install scikit-learn
-pip install tqdm
-pip install flask-jwt-extended
-pip install Flask-Cors
-pip install python-dotenv
-pip install celery redis
 pip install git+https://github.com/modAL-python/modAL.git
-pip install flasgger
-pip install flask-socketio
-pip install boto3
 ```
 
 ### Running

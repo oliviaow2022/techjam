@@ -9,18 +9,23 @@ import axios from "axios";
 
 const modelData = [
   {
-    model_name: "Support Vector Classifier",
-    model_description: "Constructs a hyperplane or set of hyperplanes in a high-dimensional space to separate different classes in the data.",
+    model_name: "Support Vector Machine (SVM)",
+    model_description: "Classifies text into sentiment categories by finding the optimal separating hyperplane. Effective in high-dimensional spaces."
   },
   {
-    model_name: "Logistic Regression",
-    model_description: "Statistical method which models the probability of each sentiment class using a sigmoid function.",
+    model_name: "Naive Bayes",
+    model_description: "Probabilistic model based on feature independence assumptions. Suitable for text data with high dimensionality."
   },
   {
-    model_name: "DBSCAN",
-    model_description: "Groups together points that are close to each other based on a distance measure (e.g., cosine similarity for text data)."
+    model_name: "Random Forest",
+    model_description: "Ensemble method using multiple decision trees. Robust to overfitting and captures complex interactions between features."
+  },
+  {
+    model_name: "XGBoost (Extreme Gradient Boosting)",
+    model_description: "Advanced boosting algorithm that builds decision trees sequentially with regularization. High performance and scalability."
   }
 ];
+
 
 export default function TrainModel({ params }) {
   const [errors, setErrors] = useState({});

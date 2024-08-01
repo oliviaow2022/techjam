@@ -4,7 +4,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import SVC
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
+import xgboost as xgb
 from sklearn.metrics import classification_report
 import pickle
 

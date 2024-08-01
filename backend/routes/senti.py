@@ -2,19 +2,20 @@ import numpy as np
 import os
 import pickle
 import pandas as pd
+import torch
+import torch.nn.functional as F
 
 from flask import Blueprint, request, jsonify
-from models import db, Model, Project, Dataset, DataInstance
+from models import db, Model, Project, Dataset, DataInstance, History
 from tempfile import TemporaryDirectory
 from services.dataset import get_dataframe
 from sklearn.svm import SVC
 from xgboost import XGBClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from modAL.models import ActiveLearner
-from modAL.uncertainty import uncertainty_sampling
 from services.S3ImageDataset import s3
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 
 
 senti_routes = Blueprint('senti', __name__)
@@ -56,6 +57,7 @@ def upload_file(dataset_id):
 def train_model(project_id):
     model_name = request.json.get('model_name')
     model_description = request.json.get('model_description')
+    TRAIN_TEST_SPLIT = request.json.get('train_test_split', 0.8)
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
@@ -77,42 +79,40 @@ def train_model(project_id):
         df = get_dataframe(dataset.id, return_labelled=False)
         df['labels'] = df['labels'].fillna(df['labels'].apply(lambda x: np.random.randint(0, 3) if pd.isnull(x) else x))
 
+    X_train, X_test, y_train, y_test = TRAIN_TEST_SPLIT(df['data'], df['labels'], test_size=(1-TRAIN_TEST_SPLIT), random_state=42)
+
+    # convert text to TF-IDF
     vectorizer = TfidfVectorizer(max_features=1000)
-    X_train = vectorizer.fit_transform(df['data']).toarray()
-    y_train = np.array(df['labels'])
+    X_train = vectorizer.fit_transform(X_train)
 
     print(df.shape)
     print(df.head())
     print(X_train)
     print(y_train)
 
-    if model_name == 'svm':
+    # instantiate model
+    if model_name == 'Support Vector Machine (SVM)':
         model = SVC(kernel='linear', probability=True)
-    elif model_name == 'naive_bayes':
+    elif model_name == "Naive Bayes":
         model = MultinomialNB()
-    elif model_name == 'random_forest':
+    elif model_name == "Random Forest":
         model = RandomForestClassifier(n_estimators=100, random_state=42)
-    elif model_name == 'xgboost':
+    elif model_name == "XGBoost (Extreme Gradient Boosting)":
         model = XGBClassifier(n_estimators=50)
     else:
         raise ValueError("Invalid model name provided")
     
-    # train the estimator model 
-    learner = ActiveLearner(
-        estimator=model,
-        X_training=X_train,
-        y_training=y_train,  
-        query_strategy=uncertainty_sampling
-    )
-
+    # train model
+    model.fit(X_train, y_train)
+    
     with TemporaryDirectory() as tempdir:
-        # upload active learner to s3
-        local_learner_path = os.path.join(tempdir, f'{model_db.name}.pkl')
-        with open(local_learner_path,'wb') as f:
-            pickle.dump(learner,f)
+        # upload model to s3
+        local_model_path = os.path.join(tempdir, f'{model_db.name}.pkl')
+        with open(local_model_path,'wb') as f:
+            pickle.dump(model,f)
 
-        learner_path = f'{project.prefix}/{model_db.name}.pkl'
-        s3.upload_file(local_learner_path, project.bucket, learner_path)
+        model_path = f'{project.prefix}/{model_db.name}.pkl'
+        s3.upload_file(local_model_path, project.bucket, model_path)
 
         # upload vectorizer to s3
         local_vectorizer_path = os.path.join(tempdir, 'vectorizer.pkl')
@@ -122,10 +122,40 @@ def train_model(project_id):
         vectorizer_path = f'{project.prefix}/vectorizer.pkl'
         s3.upload_file(local_vectorizer_path, project.bucket, vectorizer_path)
 
-        model_db.saved = learner_path
+        model_db.saved = model_path
         db.session.add(model_db)
         db.session.commit()
-        print('model saved to', learner_path)
+        print('model saved to', model_path)
+
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+
+    # save training results to database
+    history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_db.id)
+    db.session.add(history)
+    db.session.commit()
+
+    # run model on unlabelled data
+    df = get_dataframe(dataset.id, return_labelled=False)
+    X_unlabelled = vectorizer.transform(df['data']).toarray()
+
+    if hasattr(model, "predict_proba"):
+        confidences = model.predict_proba(X_unlabelled)
+    elif hasattr(model, "decision_function"):
+        confidences = model.decision_function(X_unlabelled)
+        confidences = F.softmax(confidences, dim=1)
+    else:
+        raise ValueError("Model does not support confidence scoring")
+
+    entropies = -torch.sum(confidences * torch.log2(confidences), dim=1)
+    X_data_instance_ids = df['id']
+    for index, entropy in enumerate(entropies):
+        data_instance = DataInstance.query.get_or_404(X_data_instance_ids[index])
+        data_instance.entropy = entropy
+        db.session.commit()
 
     return jsonify({"message": "Model trained successfully"}), 200
 

@@ -13,3 +13,4 @@ redis
 flasgger
 flask-socketio
 boto3
+xgboost
