@@ -146,10 +146,8 @@ def export_csv(project_id):
     ]
 })
 def return_batch_for_labelling(project_id):
-    batch_size = request.json.get('batch_size')
+    batch_size = request.json.get('batch_size', 20) 
 
-    if not batch_size:
-        batch_size = 20
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 

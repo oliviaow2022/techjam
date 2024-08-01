@@ -2,17 +2,18 @@ import numpy as np
 import os
 import pickle
 import pandas as pd
-import torch
 import torch.nn.functional as F
 
 from flask import Blueprint, request, jsonify
 from models import db, Model, Project, Dataset, DataInstance, History
 from tempfile import TemporaryDirectory
 from services.dataset import get_dataframe
-from sklearn.svm import SVC
-from xgboost import XGBClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
 from services.S3ImageDataset import s3
+
+from xgboost import XGBClassifier
+from sklearn.svm import SVC
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
@@ -57,7 +58,8 @@ def upload_file(dataset_id):
 def train_model(project_id):
     model_name = request.json.get('model_name')
     model_description = request.json.get('model_description')
-    TRAIN_TEST_SPLIT = request.json.get('train_test_split', 0.8)
+    train_test_split_ratio = request.json.get('train_test_split', 0.8)
+    test_size = 1 - train_test_split_ratio
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
@@ -79,16 +81,11 @@ def train_model(project_id):
         df = get_dataframe(dataset.id, return_labelled=False)
         df['labels'] = df['labels'].fillna(df['labels'].apply(lambda x: np.random.randint(0, 3) if pd.isnull(x) else x))
 
-    X_train, X_test, y_train, y_test = TRAIN_TEST_SPLIT(df['data'], df['labels'], test_size=(1-TRAIN_TEST_SPLIT), random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(df['data'], df['labels'], test_size=test_size, random_state=42)
 
     # convert text to TF-IDF
     vectorizer = TfidfVectorizer(max_features=1000)
     X_train = vectorizer.fit_transform(X_train)
-
-    print(df.shape)
-    print(df.head())
-    print(X_train)
-    print(y_train)
 
     # instantiate model
     if model_name == 'Support Vector Machine (SVM)':
@@ -127,6 +124,7 @@ def train_model(project_id):
         db.session.commit()
         print('model saved to', model_path)
 
+    X_test = vectorizer.transform(X_test)
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
@@ -150,7 +148,8 @@ def train_model(project_id):
     else:
         raise ValueError("Model does not support confidence scoring")
 
-    entropies = -torch.sum(confidences * torch.log2(confidences), dim=1)
+    entropies = -np.sum(confidences * np.log2(confidences), axis=1)
+
     X_data_instance_ids = df['id']
     for index, entropy in enumerate(entropies):
         data_instance = DataInstance.query.get_or_404(X_data_instance_ids[index])
@@ -158,77 +157,3 @@ def train_model(project_id):
         db.session.commit()
 
     return jsonify({"message": "Model trained successfully"}), 200
-
-
-@senti_routes.route('<int:project_id>/query', methods=['POST'])
-def query_model(project_id):
-    batch_size = request.json.get('batch_size')
-
-    if not batch_size:
-        batch_size = 20
-
-    project = Project.query.get_or_404(project_id, description="Project ID not found")
-    dataset = Dataset.query.filter_by(project_id=project.id).first()
-    model_db = Model.query.filter_by(project_id=project.id).first()
-
-    if not model_db:
-        return jsonify({"error": "No trained model found"}), 400
-
-    if not model_db.saved:
-        data_instances =  DataInstance.query.filter_by(dataset_id=dataset.id, manually_processed=False).limit(batch_size).all()
-        data_list = [instance.to_dict() for instance in data_instances]
-        return jsonify(data_list), 200
-
-    # load saved model from s3
-    response = s3.get_object(Bucket=project.bucket, Key=f'{project.prefix}/{model_db.name}.pkl')
-    pickle_data = response['Body'].read()
-    learner = pickle.loads(pickle_data)
-
-    # load saved vectorizer from s3
-    response = s3.get_object(Bucket=project.bucket, Key=f'{project.prefix}/vectorizer.pkl')
-    pickle_data = response['Body'].read()
-    vectorizer = pickle.loads(pickle_data)
-
-    df = get_dataframe(dataset.id, return_labelled=False)
-
-    print(df.shape)
-    print(df.head())
-
-    X = vectorizer.transform(df['data']).toarray()
-
-    query_idx, _ = learner.query(X, n_instances=batch_size)
-    queried_data = df.iloc[query_idx]
-
-    return queried_data.to_json(orient='records'), 200
-
-
-@senti_routes.route('<int:data_instance_id>/label', methods=['POST'])
-def label_data(data_instance_id):
-    data_instance = DataInstance.query.get_or_404(data_instance_id)
-    dataset = Dataset.query.get_or_404(data_instance.dataset_id)
-    project = Project.query.get_or_404(dataset.project_id)
-    model_db = Model.query.filter_by(project_id=project.id).first()
-
-    new_label = request.json.get('label')
-    if not new_label:
-        return jsonify({"error": "New label required"}), 400
-
-    # load saved model from s3
-    response = s3.get_object(Bucket=project.bucket, Key=f'{project.prefix}/{model_db.name}.pkl')
-    pickle_data = response['Body'].read()
-    learner = pickle.loads(pickle_data)
-
-    # load saved vectorizer from s3
-    response = s3.get_object(Bucket=project.bucket, Key=f'{project.prefix}/vectorizer.pkl')
-    pickle_data = response['Body'].read()
-    vectorizer = pickle.loads(pickle_data)
-    
-    # Update the learner
-    X = vectorizer.transform([data_instance.data])
-    learner.teach(X, [new_label])
-
-    data_instance.labels = new_label
-    data_instance.manually_processed = True
-    db.session.commit()
-    
-    return jsonify({"message": "Label added successfully", 'data_instance_id': data_instance_id}), 200
