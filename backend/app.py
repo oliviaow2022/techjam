@@ -16,6 +16,7 @@ from routes.history import history_routes
 from routes.epoch import epoch_routes
 from routes.general import general_routes
 from routes.senti import senti_routes
+from routes.objdet import objdet_routes
 from dotenv import load_dotenv
 import os
 
@@ -31,6 +32,7 @@ app.register_blueprint(model_routes, url_prefix='/model')
 app.register_blueprint(history_routes, url_prefix='/history')
 app.register_blueprint(epoch_routes, url_prefix='/epoch')
 app.register_blueprint(senti_routes, url_prefix='/senti')
+app.register_blueprint(objdet_routes, url_prefix='/objdet')
 app.register_blueprint(general_routes)
 
 app.config.from_object(Config)
@@ -63,9 +65,7 @@ def seed():
     db.session.commit()
 
     ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="Single Label Classification")
-    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="Single Label Classification")
-    cifar10 = Project(name="Cifar-10", user_id=user.id, type="1")
-    db.session.add_all([ants_bees, fashion_mnist, cifar10])
+    db.session.add(ants_bees)
     db.session.commit()
 
     ants_bees_ds = Dataset(name="Ants and Bees", project_id=ants_bees.id, num_classes=2, class_to_label_mapping={0: 'ants', 1: 'bees'})
@@ -76,9 +76,7 @@ def seed():
     densenet121 = Model(name='DenseNet-121', project_id=ants_bees.id)
     alexnet = Model(name='AlexNet', project_id=ants_bees.id)
     convnext_base = Model(name='ConvNext Base', project_id=ants_bees.id)
-    resnet18_2 = Model(name='ResNet-18', project_id=fashion_mnist.id)
-    resnet18_3 = Model(name='ResNet-18', project_id=cifar10.id)
-    db.session.add_all([resnet18, densenet121, alexnet, convnext_base, resnet18_2, resnet18_3])
+    db.session.add_all([resnet18, densenet121, alexnet, convnext_base])
     db.session.commit()
 
     """Seed the database from a CSV file."""

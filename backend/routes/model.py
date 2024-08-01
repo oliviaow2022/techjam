@@ -3,7 +3,7 @@ from models import db, Model, Project, Dataset
 from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
 import threading
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 from tempfile import TemporaryDirectory
 from botocore.exceptions import ClientError
 import os

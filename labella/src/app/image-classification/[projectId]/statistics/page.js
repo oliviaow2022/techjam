@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import EpochChart from "@/components/EpochChart";
 import Navbar from "@/components/nav/NavBar";
@@ -30,6 +32,33 @@ export default function Statistics({ params }) {
     fetchData();
   }, [apiEndpoint]);
 
+  const handleDownloadModel = async (modelId) => {
+    try {
+      toast.success("Downloading file");
+      let response = await axios.get(
+        process.env.NEXT_PUBLIC_API_ENDPOINT +
+          `/model/${modelId}/download`,
+        {
+          responseType: "blob", // Important: 'blob' indicates binary data
+        }
+      );
+
+      console.log(response)
+      if (response.status === 200) {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `model.pth`); // Set the file name here
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.log(error)
+    }
+   
+  };
+
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
@@ -39,24 +68,37 @@ export default function Statistics({ params }) {
           <p className="text-xl text-[#FF52BF] font-bold mb-8">
             Image Classification
           </p>
-          {modelTrainHistory.length == 0 && <p className="font-bold mb-2">No models have been trained yet!</p>}
+          {modelTrainHistory.length == 0 && (
+            <p className="font-bold mb-2">No models have been trained yet!</p>
+          )}
           {modelTrainHistory.map((trainHistory) => (
             <div>
-              <p className="font-bold mb-2">{trainHistory.model.name} ({new Date(trainHistory.history.created_at).toLocaleString()})</p>
+              <div className="flex flex-row justify-between mb-2">
+                <p className="font-bold mb-2">
+                  {trainHistory.model.name} (
+                  {new Date(trainHistory.history.created_at).toLocaleString()})
+                </p>
+                <button
+                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
+                  onClick={() => handleDownloadModel(trainHistory.model.id)}
+                >
+                  Download Model
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">Accuracy</p>
                   <p>{trainHistory.history.accuracy}</p>
                 </div>
-                <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                <div className="bg-[#3B3840] rounded-lg  p-4">
                   <p className="text-white font-bold mb-2">Precision</p>
                   <p>{trainHistory.history.precision}</p>
                 </div>
-                <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">Recall</p>
                   <p>{trainHistory.history.recall}</p>
                 </div>
-                <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">F1 Score</p>
                   <p>{trainHistory.history.f1}</p>
                 </div>

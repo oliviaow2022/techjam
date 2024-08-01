@@ -2,7 +2,7 @@ import torch
 import os, time
 from tempfile import TemporaryDirectory
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from S3ImageDataset import s3, S3ImageDataset, download_weights_from_s3
+from services.S3ImageDataset import s3, S3ImageDataset, download_weights_from_s3
 from models import db, History, Epoch, DataInstance
 from tqdm import tqdm
 from torch.utils.data import random_split, DataLoader
@@ -234,26 +234,31 @@ def run_training(app_context, project, dataset, model, NUM_EPOCHS, TRAIN_TEST_SP
         run_labelling_using_model(app_context, project, dataset, model)
 
 
+def get_image_classification_model(model_name, num_classes):
+    if model_name == 'ResNet-18':
+        ml_model = torchvision.models.resnet18(weights='DEFAULT')
+        num_ftrs = ml_model.fc.in_features
+        ml_model.fc = torch.nn.Linear(num_ftrs, num_classes)
+    elif model_name == 'DenseNet-121':
+        ml_model = torchvision.models.densenet121(weights='DEFAULT')
+        num_ftrs = ml_model.classifier.in_features
+        ml_model.classifier = torch.nn.Linear(num_ftrs, num_classes)
+    elif model_name == 'AlexNet':
+        ml_model = torchvision.models.alexnet(weights='DEFAULT')
+        num_ftrs = ml_model.classifier[6].in_features
+        ml_model.classifier[6] = torch.nn.Linear(num_ftrs, num_classes)
+    elif model_name == 'ConvNext Base':
+        ml_model = torchvision.models.convnext_base(weights='DEFAULT')
+        num_ftrs = ml_model.classifier[2].in_features
+        ml_model.classifier[2] = torch.nn.Linear(num_ftrs, num_classes)
+
+    return ml_model
+
 def run_labelling_using_model(app_context, project, dataset, model):
     
     with app_context:
         # initialise model
-        if model.name == 'ResNet-18':
-            ml_model = torchvision.models.resnet18(weights='DEFAULT')
-            num_ftrs = ml_model.fc.in_features
-            ml_model.fc = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'DenseNet-121':
-            ml_model = torchvision.models.densenet121(weights='DEFAULT')
-            num_ftrs = ml_model.classifier.in_features
-            ml_model.classifier = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'AlexNet':
-            ml_model = torchvision.models.alexnet(weights='DEFAULT')
-            num_ftrs = ml_model.classifier[6].in_features
-            ml_model.classifier[6] = torch.nn.Linear(num_ftrs, dataset.num_classes)
-        elif model.name == 'ConvNext Base':
-            ml_model = torchvision.models.convnext_base(weights='DEFAULT')
-            num_ftrs = ml_model.classifier[2].in_features
-            ml_model.classifier[2] = torch.nn.Linear(num_ftrs, dataset.num_classes)
+        ml_model = get_image_classification_model(model.name, dataset.num_classes)
 
         # load in weights
         model_weights = download_weights_from_s3(project.bucket, model.saved)
