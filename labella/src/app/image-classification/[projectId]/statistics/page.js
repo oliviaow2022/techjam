@@ -2,61 +2,87 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import axios from "axios";
 
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import EpochChart from "@/components/EpochChart";
 import Navbar from "@/components/nav/NavBar";
-import axios from "axios";
+import TaskMonitor from "@/components/TaskMonitor";
+import Arrow from "@/components/Arrow";
 
 export default function Statistics({ params }) {
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/history/${params.projectId}/info`;
-  const jwtToken = localStorage.getItem("jwt");
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwtToken}`,
-    },
+
+  const [historyData, setHistoryData] = useState(null);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const fetchData = async () => {
+    try {
+      const response = await axios.get(apiEndpoint, {
+        params: {
+          index: historyIndex,
+        },
+      });
+
+      console.log(response.data);
+      setHistoryData(response.data);
+    } catch (error) {
+      console.error(error.message);
+    }
   };
-  const [modelTrainHistory, setModelTrainHistory] = useState([]);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get(apiEndpoint);
-        console.log(response.data);
-        setModelTrainHistory(response.data);
-      } catch (error) {
-        console.error(error.message);
-      }
-    };
     fetchData();
-  }, [apiEndpoint]);
+  }, [apiEndpoint, historyIndex]);
 
   const handleDownloadModel = async (modelId) => {
     try {
       toast.success("Downloading file");
       let response = await axios.get(
-        process.env.NEXT_PUBLIC_API_ENDPOINT +
-          `/model/${modelId}/download`,
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
         }
       );
 
-      console.log(response)
+      console.log(response);
       if (response.status === 200) {
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', `model.pth`); // Set the file name here
+        link.setAttribute("download", `model.pth`); // Set the file name here
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
     }
-   
+  };
+
+  const handleDownloadDataset = async (projectId) => {
+    try {
+      // Make GET request to backend endpoint
+      const response = await axios.get(process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${projectId}/download`, {
+        responseType: "blob", // Important to handle file download
+      });
+
+      // Create a URL for the downloaded file
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "data_instances.csv"); // Specify file name
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Error downloading CSV:", error);
+    }
+  };
+
+  const handleTaskSuccess = () => {
+    fetchData(); // Fetch data when the task is successful
   };
 
   return (
@@ -65,45 +91,80 @@ export default function Statistics({ params }) {
       <div className="flex flex-row">
         <ImageClassificationSideNav params={params.projectId} />
         <div className="ml-0 lg:ml-20 mt-32">
-          <p className="text-xl text-[#FF52BF] font-bold mb-8">
-            Image Classification
-          </p>
-          {modelTrainHistory.length == 0 && (
+          <div className="flex flex-row justify-between">
+            <p className="text-xl text-[#FF52BF] font-bold mb-8">
+              Image Classification
+            </p>
+            {historyData && (
+              <div className="flex flex-row items-center">
+                {historyIndex > 0 && (
+                  <button
+                    onClick={() =>
+                      setHistoryIndex((prevIndex) => prevIndex - 1)
+                    }
+                  >
+                    <Arrow direction="left" />
+                  </button>
+                )}
+                <p className="px-3">{historyIndex + 1}</p>
+                {historyIndex < historyData?.max_index && (
+                  <button
+                    onClick={() =>
+                      setHistoryIndex((prevIndex) => prevIndex + 1)
+                    }
+                  >
+                    <Arrow direction="right" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          {!historyData && (
             <p className="font-bold mb-2">No models have been trained yet!</p>
           )}
-          {modelTrainHistory.map((trainHistory) => (
+          {historyData && (
             <div>
-              <div className="flex flex-row justify-between mb-2">
-                <p className="font-bold mb-2">
-                  {trainHistory.model.name} (
-                  {new Date(trainHistory.history.created_at).toLocaleString()})
-                </p>
+              <TaskMonitor
+                resultId={historyData.history?.task_id}
+                onSuccess={handleTaskSuccess}
+              />
+              <div className="flex flex-row gap-2 mb-8">
                 <button
                   className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
-                  onClick={() => handleDownloadModel(trainHistory.model.id)}
+                  onClick={() => handleDownloadModel(historyData.model?.id)}
                 >
                   Download Model
                 </button>
+                <button
+                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
+                  onClick={() => handleDownloadDataset(params.projectId)}
+                >
+                  Download Dataset
+                </button>
               </div>
+              <p className="font-bold mb-2">
+                {historyData.model?.name} (
+                {new Date(historyData.history?.created_at).toLocaleString()})
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">Accuracy</p>
-                  <p>{trainHistory.history.accuracy}</p>
+                  <p>{historyData.history?.accuracy}</p>
                 </div>
                 <div className="bg-[#3B3840] rounded-lg  p-4">
                   <p className="text-white font-bold mb-2">Precision</p>
-                  <p>{trainHistory.history.precision}</p>
+                  <p>{historyData.history?.precision}</p>
                 </div>
                 <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">Recall</p>
-                  <p>{trainHistory.history.recall}</p>
+                  <p>{historyData.history?.recall}</p>
                 </div>
                 <div className="bg-[#3B3840] rounded-lg p-4">
                   <p className="text-white font-bold mb-2">F1 Score</p>
-                  <p>{trainHistory.history.f1}</p>
+                  <p>{historyData.history?.f1}</p>
                 </div>
               </div>
-              <EpochChart epochs={trainHistory.epochs} />
+              {historyData.epochs && <EpochChart epochs={historyData.epochs} />}
               <table className="table-auto w-full border-collapse border border-slate-500 my-5">
                 <thead>
                   <tr>
@@ -123,7 +184,7 @@ export default function Statistics({ params }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {trainHistory.epochs.map((epoch, epochIndex) => (
+                  {historyData.epochs?.map((epoch, epochIndex) => (
                     <tr key={epochIndex}>
                       <td className="border px-4 py-2 border-slate-700">
                         {epochIndex + 1}
@@ -145,7 +206,7 @@ export default function Statistics({ params }) {
                 </tbody>
               </table>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </main>

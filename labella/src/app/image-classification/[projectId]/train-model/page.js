@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import Navbar from "@/components/nav/NavBar";
@@ -32,6 +33,8 @@ const models = [
 ];
 
 export default function TrainModelButton({ params }) {
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     batch_size: 128,
     num_epochs: 3,
@@ -39,7 +42,6 @@ export default function TrainModelButton({ params }) {
     model_name: "",
     model_description: "",
   });
-
   const [errors, setErrors] = useState({});
 
   const handleSubmit = async (e) => {
@@ -59,7 +61,8 @@ export default function TrainModelButton({ params }) {
         console.log(response);
 
         if (response.status === 200) {
-          toast.success("Job created");
+          toast.success(`Job ID ${response.data.task_id} created`);
+          router.push(`/image-classification/${params.projectId}/statistics`)
         }
       } catch (err) {
         console.log(err);

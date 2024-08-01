@@ -1,12 +1,15 @@
+import os
+import threading
+
 from flask import Blueprint, request, jsonify, send_file
-from models import db, Model, Project, Dataset
+from models import db, Model, Project, Dataset, History
 from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
 import threading
 from services.S3ImageDataset import s3
 from tempfile import TemporaryDirectory
 from botocore.exceptions import ClientError
-import os
+
 
 model_routes = Blueprint('model', __name__)
 
@@ -104,17 +107,16 @@ def new_training_job(project_id):
 
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
-    print(project)
-    print(dataset)
-    print(model)
+    history = History(model_id=model.id)
+    db.session.add(history)
+    db.session.commit()
 
-    from app import app
-    app_context = app.app_context()
+    task = run_training.delay(project.to_dict(), dataset.to_dict(), model.to_dict(), history.to_dict(), num_epochs, train_test_split, batch_size)
 
-    training_thread = threading.Thread(target=run_training, args=(app_context, project, dataset, model, num_epochs, train_test_split, batch_size))
-    training_thread.start()
+    history.task_id = task.id
+    db.session.commit()
 
-    return jsonify({'message': 'Training started'}), 200
+    return jsonify({'task_id': task.id}), 200
 
 
 @model_routes.route('/<int:id>/label', methods=['POST'])
