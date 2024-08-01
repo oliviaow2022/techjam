@@ -1,14 +1,17 @@
-from flask import Blueprint, request, jsonify
+import zipfile
+import io
+import csv
+import json
+import os
+import uuid
+
+from flask import Blueprint, request, jsonify, send_file
 from models import db, Model, Dataset, Project, DataInstance
 import pandas as pd
 from flasgger import swag_from
-import json
 from werkzeug.utils import secure_filename
-import os
-import uuid
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 from services.dataset import get_dataset_config
-import zipfile
 
 dataset_routes = Blueprint('dataset', __name__)
 
@@ -78,6 +81,45 @@ def return_dataframe(id):
     return df.to_json(orient='records')
 
 
+@dataset_routes.route('/<int:project_id>/download', methods=['GET'])
+def export_csv(project_id):
+    Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project_id).first()
+
+    # Query DataInstance records based on dataset_id
+    data_instances = DataInstance.query.filter_by(dataset_id=dataset.id).all()
+
+    if not data_instances:
+        return jsonify({"error": "No data instances found"}), 404
+    
+    # Create an in-memory output file
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write CSV header
+    writer.writerow(['ID', 'Data', 'Labels', 'Manually Processed', 'Entropy'])
+
+    # Write CSV rows
+    for instance in data_instances:
+        writer.writerow([
+            instance.id,
+            instance.data,
+            instance.labels or '',  # Handle None or empty string
+            instance.manually_processed,
+            instance.entropy
+        ])
+
+    output.seek(0)
+
+    # Send the CSV file as a response
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'{dataset.name}.csv'
+    )
+
+
 @dataset_routes.route('/<int:project_id>/batch', methods=['POST'])
 @swag_from({
     'tags': ['Dataset'],
@@ -104,7 +146,7 @@ def return_dataframe(id):
     ]
 })
 def return_batch_for_labelling(project_id):
-    batch_size = request.json.get('batch_size') 
+    batch_size = request.json.get('batch_size')
 
     if not batch_size:
         batch_size = 20
