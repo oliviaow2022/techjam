@@ -10,3 +10,6 @@ flask-cors
 python-dotenv
 celery
 redis
+flasgger
+flask-socketio
+boto3

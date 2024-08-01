@@ -1,18 +1,21 @@
-from flask import Blueprint, request, jsonify
-from models import db, Model, Project, Dataset, DataInstance
-from flasgger import swag_from
-from tempfile import TemporaryDirectory
-from services.dataset import get_dataframe
-from sklearn.svm import SVC
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from modAL.models import ActiveLearner
-from modAL.uncertainty import uncertainty_sampling
 import numpy as np
 import os
 import pickle
-from S3ImageDataset import s3
+import pandas as pd
+
+from flask import Blueprint, request, jsonify
+from models import db, Model, Project, Dataset, DataInstance
+from tempfile import TemporaryDirectory
+from services.dataset import get_dataframe
+from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from modAL.models import ActiveLearner
+from modAL.uncertainty import uncertainty_sampling
+from services.S3ImageDataset import s3
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import RandomForestClassifier
+
 
 senti_routes = Blueprint('senti', __name__)
 
@@ -83,9 +86,17 @@ def train_model(project_id):
     print(X_train)
     print(y_train)
 
-    if model_name == "Support Vector Classifier":
+    if model_name == 'svm':
         model = SVC(kernel='linear', probability=True)
-
+    elif model_name == 'naive_bayes':
+        model = MultinomialNB()
+    elif model_name == 'random_forest':
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+    elif model_name == 'xgboost':
+        model = XGBClassifier(n_estimators=50)
+    else:
+        raise ValueError("Invalid model name provided")
+    
     # train the estimator model 
     learner = ActiveLearner(
         estimator=model,
