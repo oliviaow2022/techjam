@@ -90,7 +90,7 @@ export default function SentimentAnalysisStatistics({ params }) {
       <Navbar />
       <div className="flex flex-row">
         <SentimentAnalysisSideNav params={params.projectId} />
-        <div className="ml-0 lg:ml-20 mt-32">
+        <div className="ml-0 lg:ml-20 mt-32 w-full">
           <div className="flex flex-row justify-between">
             <p className="text-xl text-[#FF52BF] font-bold mb-8">
               Sentiment Analysis
@@ -107,7 +107,7 @@ export default function SentimentAnalysisStatistics({ params }) {
                   </button>
                 )}
                 <p className="px-3">{historyIndex + 1}</p>
-                {historyIndex < historyData?.max_index && (
+                {historyIndex < historyData?.max_index - 1 && (
                   <button
                     onClick={() =>
                       setHistoryIndex((prevIndex) => prevIndex + 1)
@@ -164,47 +164,50 @@ export default function SentimentAnalysisStatistics({ params }) {
                   <p>{historyData.history?.f1}</p>
                 </div>
               </div>
-              {historyData.epochs && <EpochChart epochs={historyData.epochs} />}
-              <table className="table-auto w-full border-collapse border border-slate-500 my-5">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 border border-slate-600">Epoch</th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Train Accuracy
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Train Loss
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Validation Accuracy
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Validation Loss
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyData.epochs?.map((epoch, epochIndex) => (
-                    <tr key={epochIndex}>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epochIndex + 1}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.train_acc}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.train_loss}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.val_acc}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.val_loss}
-                      </td>
+              {historyData.epochs.length > 0 && 
+              <>
+                <EpochChart epochs={historyData.epochs} />
+                <table className="table-auto w-full border-collapse border border-slate-500 my-5">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 border border-slate-600">Epoch</th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Train Accuracy
+                      </th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Train Loss
+                      </th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Validation Accuracy
+                      </th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Validation Loss
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {historyData.epochs?.map((epoch, epochIndex) => (
+                      <tr key={epochIndex}>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epochIndex + 1}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.train_acc}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.train_loss}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.val_acc}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.val_loss}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>}
             </div>
           )}
         </div>

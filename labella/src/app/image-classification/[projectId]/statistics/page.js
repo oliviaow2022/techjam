@@ -107,7 +107,7 @@ export default function Statistics({ params }) {
                   </button>
                 )}
                 <p className="px-3">{historyIndex + 1}</p>
-                {historyIndex < historyData?.max_index && (
+                {historyIndex < historyData?.max_index - 1 && (
                   <button
                     onClick={() =>
                       setHistoryIndex((prevIndex) => prevIndex + 1)

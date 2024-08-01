@@ -127,9 +127,9 @@ def train_model(project_id):
     X_test = vectorizer.transform(X_test)
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, average="micro")
+    recall = recall_score(y_test, y_pred, average="micro")
+    f1 = f1_score(y_test, y_pred, average="micro")
 
     # save training results to database
     history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_db.id)
@@ -148,6 +148,11 @@ def train_model(project_id):
     else:
         raise ValueError("Model does not support confidence scoring")
 
+    # Define a small epsilon value to avoid log(0)
+    epsilon = 1e-10
+
+    # Clip confidences to ensure no values are zero
+    confidences = np.clip(confidences, epsilon, 1.0)
     entropies = -np.sum(confidences * np.log2(confidences), axis=1)
 
     X_data_instance_ids = df['id']
