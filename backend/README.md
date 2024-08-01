@@ -113,6 +113,7 @@ Starting a background task:
     - If you use bind=True, it means that you need to pass in self as an argument, and this allows you to keep updating the state of the task using self.update_state while it's still running
     - If you use base=AbortableTask, it means that you can cancel the task while it is running halfway
 2. **start_task in app.py**: Use <task_function_name>.delay() to create a new task and pass in the necessary arguments
+    - Note that the arguments you pass in must be JSON serialisable. I converted the database objects to dictionaries before passing them in.
     - You should see that the task is received in the terminal running the celery worker
 3. **task_result in app.py**: Use AsyncResult(<task_id>) to fetch the status and info of the task
     - These are the possible states: PENDING, STARTED, RETRY, FAILURE, SUCCESS. When I used self.update_state, I added a new state PROGRESS and metadata of the current iteration. 
