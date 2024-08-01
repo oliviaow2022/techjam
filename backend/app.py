@@ -1,56 +1,96 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
-from config import Config
-import csv
-from models import db, User, Project, Dataset, DataInstance, Model
 import click
-from flasgger import Swagger
-from flask.cli import with_appcontext
-from flask_jwt_extended import JWTManager
-from routes.user import user_routes
-from routes.project import project_routes
-from routes.dataset import dataset_routes
-from routes.data_instance import data_instance_routes
-from routes.model import model_routes
-from routes.history import history_routes
-from routes.epoch import epoch_routes
-from routes.general import general_routes
-from routes.senti import senti_routes
-from dotenv import load_dotenv
+import csv
 import os
+import threading
+import time
+
+from dotenv import load_dotenv
+from create_app import create_app
+from flask.cli import with_appcontext
+from models import db, User, Project, Dataset, DataInstance, Model
+from flask import jsonify, request
+from celery.result import AsyncResult
+from services.tasks import long_running_task
+from flask_socketio import emit
 
 load_dotenv()
 
-app = Flask(__name__)
-CORS(app)
-app.register_blueprint(user_routes, url_prefix='/user')
-app.register_blueprint(project_routes, url_prefix='/project')
-app.register_blueprint(dataset_routes, url_prefix='/dataset')
-app.register_blueprint(data_instance_routes, url_prefix='/instance')
-app.register_blueprint(model_routes, url_prefix='/model')
-app.register_blueprint(history_routes, url_prefix='/history')
-app.register_blueprint(epoch_routes, url_prefix='/epoch')
-app.register_blueprint(senti_routes, url_prefix='/senti')
-app.register_blueprint(general_routes)
+flask_app, celery_app, socketio = create_app()
+flask_app.app_context().push()
 
-app.config.from_object(Config)
-db.init_app(app)
-jwt = JWTManager(app)
-
-# Initialize Swagger
-swagger_config = {
-    'swagger': '2.0',
-    'info': {
-        'title': 'Labella',
-        'description': 'API documentation using Swagger and Flask',
-        'version': '1.0'
-    },
-    'host': '127.0.0.1:5001'
-}
-Swagger(app, template=swagger_config)
+@flask_app.get("/trigger_task")
+def start_task() -> dict[str, object]:
+    iterations = request.args.get('iterations')
+    print(iterations)
+    result = long_running_task.delay(int(iterations))
+    return {"result.id": result.id}
 
 
-@app.cli.command('seed')
+@flask_app.get("/get_result")
+def task_result() -> dict[str, object]:
+    result_id = request.args.get('result_id')
+    result = AsyncResult(result_id)
+    print(result)
+    return {
+        "id": result.id,
+        "state":  result.state,
+        "current": str(result.info),
+    }
+
+# Dictionary to keep track of the current task (ONLY ONE) being monitored for each client
+current_tasks = {}
+
+def monitor_task(result_id, sid):
+    while True:
+        result = AsyncResult(result_id)
+        socketio.emit('task_update', {
+            "id": result.id,
+            "state": result.state,
+            "info": result.info,
+        }, room=sid)
+        if result.state in ('SUCCESS', 'FAILURE'):
+            break
+        time.sleep(2)
+    # Final state
+    socketio.emit('task_update', {
+            "id": result.id,
+            "state": result.state,
+            "info": result.info,
+        }, room=sid)
+
+# WebSocket event for connecting
+@socketio.on('connect')
+def handle_connect():
+    emit('Client connected')
+
+
+# WebSocket event for disconnecting
+@socketio.on('disconnect')
+def handle_disconnect():
+    emit('Client disconnected')
+
+
+# WebSocket event for monitoring task result
+@socketio.on('monitor_task')
+def handle_monitor_task(data):
+    result_id = data.get('result_id')
+    sid = request.sid
+    if result_id:
+        if sid in current_tasks:
+            current_tasks.pop(sid, None)
+        
+        current_tasks[sid] = result_id
+        threading.Thread(target=monitor_task, args=(result_id, sid)).start()
+    else:
+        emit('error', {'message': 'Missing result_id'})
+
+
+@flask_app.route('/')
+def hello_world():
+   return jsonify({"message": "Welcome to the API!"})
+
+
+@flask_app.cli.command('seed')
 @with_appcontext
 def seed():
     db.drop_all()
@@ -63,9 +103,7 @@ def seed():
     db.session.commit()
 
     ants_bees = Project(name="Multi-Class Classification", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='transfer-antsbees', type="Single Label Classification")
-    fashion_mnist = Project(name="Fashion Mnist", user_id=user.id, bucket=os.getenv('S3_BUCKET'), prefix='fashion-mnist', type="Single Label Classification")
-    cifar10 = Project(name="Cifar-10", user_id=user.id, type="1")
-    db.session.add_all([ants_bees, fashion_mnist, cifar10])
+    db.session.add(ants_bees)
     db.session.commit()
 
     ants_bees_ds = Dataset(name="Ants and Bees", project_id=ants_bees.id, num_classes=2, class_to_label_mapping={0: 'ants', 1: 'bees'})
@@ -76,9 +114,7 @@ def seed():
     densenet121 = Model(name='DenseNet-121', project_id=ants_bees.id)
     alexnet = Model(name='AlexNet', project_id=ants_bees.id)
     convnext_base = Model(name='ConvNext Base', project_id=ants_bees.id)
-    resnet18_2 = Model(name='ResNet-18', project_id=fashion_mnist.id)
-    resnet18_3 = Model(name='ResNet-18', project_id=cifar10.id)
-    db.session.add_all([resnet18, densenet121, alexnet, convnext_base, resnet18_2, resnet18_3])
+    db.session.add_all([resnet18, densenet121, alexnet, convnext_base])
     db.session.commit()
 
     """Seed the database from a CSV file."""
@@ -98,10 +134,5 @@ def seed():
     click.echo('Seed data added successfully.')
 
 
-@app.route('/')
-def hello_world():
-   return jsonify({"message": "Welcome to the API!"})
-
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+if __name__ == "__main__":
+    socketio.run(flask_app, debug=True, port=5001)

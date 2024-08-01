@@ -12,7 +12,7 @@ from modAL.uncertainty import uncertainty_sampling
 import numpy as np
 import os
 import pickle
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 
 senti_routes = Blueprint('senti', __name__)
 
