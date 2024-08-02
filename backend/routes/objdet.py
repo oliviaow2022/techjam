@@ -2,13 +2,11 @@ import os, time
 import uuid
 import zipfile
 import torch
-
 from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify
-from models import db, Annotation, Project, Dataset, Model
+from models import db, Annotation, Project, Dataset, Model, History
 from services.S3ImageDataset import s3, ObjDetDataset
-from services.objdet import get_model_instance, split_train_data, get_data_loader
-from services.model import run_training, run_labelling_using_model
+from services.objdet import run_training, get_model_instance, split_train_data, get_data_loader
 import threading
 
 objdet_routes = Blueprint('objdet', __name__)
@@ -143,7 +141,15 @@ def label_data(annotation_id):
 
 
 @objdet_routes.route('<int:project_id>/train', methods=['POST'])
-def new_training_job(project_id):
+def train_model(project_id):
+    # dataloader = get_data_loader(dataset)
+    # train_loader, val_loader = split_train_data(dataloader)
+
+    # model = get_model_instance(num_classes=dataset.num_classes)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    # pass
     print('running training...')
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
@@ -170,6 +176,10 @@ def new_training_job(project_id):
     dataset = ObjDetDataset(annotation_ids_list, project.bucket, project.prefix)
     dataloader = get_data_loader(dataset)
     train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
+
+    history = History(model_id=model.id)
+    db.session.add(history)
+    db.session.commit()
 
     from app import app
     app_context = app.app_context()

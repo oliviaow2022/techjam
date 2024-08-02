@@ -85,46 +85,79 @@ def split_train_data(data_loader, batch_size, train_test_split_ratio):
 #                     break
 #             return model
 
-def train_epoch(model, dataloader, optimizer, device):
+def train_epoch(model, train_loader, optimizer, device):
     model.train()
     running_loss = 0.0
 
-    progress_bar = tqdm(dataloader, desc='Training', leave=False)
-    for imgs, annotations in progress_bar:
-        imgs = list(img.to(device) for img in imgs)
+    for images, annotations in tqdm(train_loader, desc="Training"):
+        imgs = list(img.to(device) for img in images)
         annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
-
-        optimizer.zero_grad()
         loss_dict = model(imgs, annotations)
         losses = sum(loss for loss in loss_dict.values())
+
+        optimizer.zero_grad()
         losses.backward()
         optimizer.step()
-        
-        running_loss += losses.item() * len(imgs)
-        
-        progress_bar.set_postfix(loss=losses.item())
 
-    epoch_loss = running_loss / len(dataloader.dataset)
-    return epoch_loss
+        running_loss += losses.item()
 
+    return running_loss / len(train_loader)
 
-def validate_epoch(model, dataloader, device):
+from torchvision.ops import box_iou
+
+def validate_epoch(model, val_loader, device, iou_threshold=0.5):
     model.eval()
-    running_loss = 0.0
-
+    all_predictions = []
+    all_annotations = []
+    
     with torch.no_grad():
-        for imgs, annotations in dataloader:
-            imgs = list(img.to(device) for img in imgs)
+        for images, annotations in tqdm(val_loader, desc="Validating"):
+            images = [image.to(device) for image in images]
             annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
+            
+            outputs = model(images)
+            all_predictions.extend(outputs)
+            all_annotations.extend(annotations)
 
-            loss_dict = model(imgs, annotations)
-            losses = sum(loss for loss in loss_dict.values())
+    tp, fp, fn = 0, 0, 0
+            
+    for pred, annot in zip(all_predictions, all_annotations):
+        pred_boxes = pred['boxes']
+        pred_labels = pred['labels']
+        
+        true_boxes = annot['boxes']
+        true_labels = annot['labels']
 
-            running_loss += losses.item() * len(imgs)
+        if len(pred_boxes) == 0:
+            fn += len(true_boxes)
+            continue
+        
+        if len(true_boxes) == 0:
+            fp += len(pred_boxes)
+            continue
 
-    epoch_loss = running_loss / len(dataloader.dataset)
-    return epoch_loss
+        ious = box_iou(pred_boxes, true_boxes)
+        
+        for j in range(len(pred_boxes)):
+            # find the ground truth bbox with the highest IOU with the current predicted bbox
+            max_iou, max_idx = torch.max(ious[j], dim=0)
+            if max_iou > iou_threshold:
+                if pred_labels[j] == true_labels[max_idx]:
+                    tp += 1
+                else:
+                    fp += 1
+                # Ensure that this true box is not matched again
+                ious[:, max_idx] = 0
+            else:
+                fp += 1
+        
+        # Calculate false negatives
+        matched_true_boxes = torch.sum(ious > iou_threshold, dim=0)
+        fn += len(true_boxes) - torch.sum(matched_true_boxes > 0).item()
 
+    precision = tp / (tp + fp) if tp + fp > 0 else 0
+    recall = tp / (tp + fn) if tp + fn > 0 else 0
+    return precision, recall
 
 def train_model(app_context, model, model_db, project, train_loader, val_loader, optimizer, scheduler, device, num_epochs):
     with app_context:
@@ -141,25 +174,19 @@ def train_model(app_context, model, model_db, project, train_loader, val_loader,
                 # Each epoch has a training and validation phase
                 train_loss = train_epoch(model, train_loader, optimizer, device)
                 scheduler.step()
-                val_loss = validate_epoch(model, val_loader, device)
+                precision, recall = validate_epoch(model, val_loader, device)
 
                 # Cache metrics for later comparison
-                history.append([train_loss, val_loss])
-                print(f'Epoch {epoch}/{num_epochs - 1}: '
-                      f'Train Loss: {train_loss:.4f}, '
-                      f'Val Loss: {val_loss:.4f}')
+                history.append([train_loss, precision, recall])
+                print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {train_loss:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}")
 
-                # Deep copy the model
-                if val_loss < best_loss:
-                    best_loss = val_loss
+                if train_loss < best_loss:
+                    best_loss = train_loss
                     torch.save(model.state_dict(), best_model_params_path)
 
             time_elapsed = time.time() - since
             print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-            print(f'Best Val Loss: {best_loss:.4f}')
-
-            # Load best model weights
-            model.load_state_dict(torch.load(best_model_params_path))
+            print(f'Best Train Loss: {best_loss:.4f}')
 
             # upload model to s3
             model_path = f'{project.prefix}/{model_db.name}.pth'
@@ -174,7 +201,7 @@ def train_model(app_context, model, model_db, project, train_loader, val_loader,
 
         return model, history
     
-def run_training(train_loader, val_loader, app_context, project, dataset, model, num_epochs, train_test_split, batch_size):
+def run_training(self, train_loader, val_loader, app_context, project, dataset, model, num_epochs, train_test_split, batch_size):
     with app_context:
         dataiter = iter(train_loader)
         images, labels = next(dataiter)
@@ -189,3 +216,9 @@ def run_training(train_loader, val_loader, app_context, project, dataset, model,
     optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
     
     ml_model, model_history = train_model(app_context, ml_model, model, project, train_loader, val_loader, optimizer, device, num_epochs)
+
+    for i, (train_loss, precision, recall) in enumerate(model_history):
+        epoch = Epoch(epoch=i, train_loss=train_loss, precision=precision, recall=recall, model_id=model.id)
+        db.session.add(epoch)
+    db.session.commit()
+    print('Training complete and data saved to the database.')
