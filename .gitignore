@@ -1,1 +1,3 @@
 .DS_Store
+.venv
+object_detection/data
