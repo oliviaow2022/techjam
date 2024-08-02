@@ -1,23 +1,14 @@
-import numpy as np
 import os
-import pickle
 import pandas as pd
-import torch.nn.functional as F
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file, make_response, Response
 from models import db, Model, Project, Dataset, DataInstance, History
+from services.senti import run_training
 from tempfile import TemporaryDirectory
-from services.dataset import get_dataframe
+import zipfile
+from io import BytesIO
+from botocore.exceptions import ClientError
 from services.S3ImageDataset import s3
-
-from xgboost import XGBClassifier
-from sklearn.svm import SVC
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-
 
 senti_routes = Blueprint('senti', __name__)
 
@@ -56,6 +47,7 @@ def upload_file(dataset_id):
 
 @senti_routes.route('<int:project_id>/train', methods=['POST'])
 def train_model(project_id):
+    print(request.json)
     model_name = request.json.get('model_name')
     model_description = request.json.get('model_description')
     train_test_split_ratio = request.json.get('train_test_split', 0.8)
@@ -63,102 +55,89 @@ def train_model(project_id):
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
-    model_db = Model.query.filter_by(project_id=project.id).first()
-    if not model_db:
+    model = Model.query.filter_by(project_id=project.id).first()
+    if not model:
         if not model_name:
             return jsonify({"error": "Model name required"}), 400
 
-        model_db = Model(name=model_name, project_id=project.id, description=model_description)
+        model = Model(name=model_name, project_id=project.id, description=model_description)
+        db.session.add(model)
+        db.session.commit()
 
     if not dataset:
        return jsonify({"error": "Dataset does not exist"}), 400
     
-    # get labelled data points from databse
-    df = get_dataframe(dataset.id, return_labelled=True)
-    
-    # initialise dataframe with random labels
-    if len(df) == 0:
-        df = get_dataframe(dataset.id, return_labelled=False)
-        df['labels'] = df['labels'].fillna(df['labels'].apply(lambda x: np.random.randint(0, 3) if pd.isnull(x) else x))
-
-    X_train, X_test, y_train, y_test = train_test_split(df['data'], df['labels'], test_size=test_size, random_state=42)
-
-    # convert text to TF-IDF
-    vectorizer = TfidfVectorizer(max_features=1000)
-    X_train = vectorizer.fit_transform(X_train)
-
-    # instantiate model
-    if model_name == 'Support Vector Machine (SVM)':
-        model = SVC(kernel='linear', probability=True)
-    elif model_name == "Naive Bayes":
-        model = MultinomialNB()
-    elif model_name == "Random Forest":
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-    elif model_name == "XGBoost (Extreme Gradient Boosting)":
-        model = XGBClassifier(n_estimators=50)
-    else:
-        raise ValueError("Invalid model name provided")
-    
-    # train model
-    model.fit(X_train, y_train)
-    
-    with TemporaryDirectory() as tempdir:
-        # upload model to s3
-        local_model_path = os.path.join(tempdir, f'{model_db.name}.pkl')
-        with open(local_model_path,'wb') as f:
-            pickle.dump(model,f)
-
-        model_path = f'{project.prefix}/{model_db.name}.pkl'
-        s3.upload_file(local_model_path, project.bucket, model_path)
-
-        # upload vectorizer to s3
-        local_vectorizer_path = os.path.join(tempdir, 'vectorizer.pkl')
-        with open(local_vectorizer_path,'wb') as f:
-            pickle.dump(vectorizer,f)
-
-        vectorizer_path = f'{project.prefix}/vectorizer.pkl'
-        s3.upload_file(local_vectorizer_path, project.bucket, vectorizer_path)
-
-        model_db.saved = model_path
-        db.session.add(model_db)
-        db.session.commit()
-        print('model saved to', model_path)
-
-    X_test = vectorizer.transform(X_test)
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average="micro")
-    recall = recall_score(y_test, y_pred, average="micro")
-    f1 = f1_score(y_test, y_pred, average="micro")
-
-    # save training results to database
-    history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_db.id)
+    history = History(model_id=model.id)
     db.session.add(history)
     db.session.commit()
 
-    # run model on unlabelled data
-    df = get_dataframe(dataset.id, return_labelled=False)
-    X_unlabelled = vectorizer.transform(df['data']).toarray()
+    task = run_training.delay(project.to_dict(), model.to_dict(), dataset.to_dict(), test_size)
 
-    if hasattr(model, "predict_proba"):
-        confidences = model.predict_proba(X_unlabelled)
-    elif hasattr(model, "decision_function"):
-        confidences = model.decision_function(X_unlabelled)
-        confidences = F.softmax(confidences, dim=1)
-    else:
-        raise ValueError("Model does not support confidence scoring")
+    history.task_id = task.id
+    db.session.commit()
 
-    # Define a small epsilon value to avoid log(0)
-    epsilon = 1e-10
+    return jsonify({'task_id': task.id}), 200
 
-    # Clip confidences to ensure no values are zero
-    confidences = np.clip(confidences, epsilon, 1.0)
-    entropies = -np.sum(confidences * np.log2(confidences), axis=1)
 
-    X_data_instance_ids = df['id']
-    for index, entropy in enumerate(entropies):
-        data_instance = DataInstance.query.get_or_404(X_data_instance_ids[index])
-        data_instance.entropy = entropy
-        db.session.commit()
+@senti_routes.route('<int:model_id>/download', methods=['GET'])
+def download_model(model_id):
+    model_db = Model.query.get_or_404(model_id, description="Model ID not found")
+    project_db = Project.query.get_or_404(model_db.project_id, description="Project ID not found")
 
-    return jsonify({"message": "Model trained successfully"}), 200
+    print(model_db)
+    if not model_db.saved:
+        return jsonify({'Message': 'Model file not found'}), 404 
+
+    try:
+        model_file_path = model_db.saved
+
+        # Extract the directory path and base file name from the S3 path
+        model_dir = os.path.dirname(model_file_path)
+        model_file_name = os.path.basename(model_file_path)
+
+        # Remove the file extension from the base file name
+        model_file_stem = os.path.splitext(model_file_name)[0]
+
+        # Create the new file name for the vectorizer
+        vectorizer_file_name = f"{model_file_stem}_vectorizer.pkl"
+
+        # Combine the directory and new file name to form the full path
+        vectorizer_file_path = os.path.join(model_dir, vectorizer_file_name)
+
+        print(model_db.saved, vectorizer_file_name)
+
+        # Create temporary directory
+        with TemporaryDirectory() as temp_dir:
+            # Define local paths for the files
+            local_model_file_path = os.path.join(temp_dir, model_file_name)
+            local_vectorizer_file_path = os.path.join(temp_dir, vectorizer_file_name)
+
+            print(local_model_file_path, local_vectorizer_file_path)
+
+            # Download files from S3
+            s3.download_file(project_db.bucket, model_db.saved, local_model_file_path)
+            s3.download_file(project_db.bucket, vectorizer_file_path, local_vectorizer_file_path)
+
+            # Check if the files were downloaded
+            if not os.path.exists(local_model_file_path) or not os.path.exists(local_vectorizer_file_path):
+                return jsonify({"error": "One or both files not found"}), 404
+
+            # Create a ZIP file with both files
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+                zip_file.write(local_model_file_path, model_file_name)
+                zip_file.write(local_vectorizer_file_path, vectorizer_file_name)
+            zip_buffer.seek(0)
+
+            # Send the ZIP file
+            response = make_response(send_file(zip_buffer, as_attachment=True, download_name=f'{model_file_stem}_files.zip'))
+            response.headers['Content-Type'] = 'application/zip'
+            return response
+
+    except ClientError as e:
+        print(e)
+        return jsonify({"error": f"Error downloading file from S3: {str(e)}"}), 500
+    except Exception as e:
+        print(e)
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        

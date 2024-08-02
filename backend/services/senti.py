@@ -53,23 +53,23 @@ def run_training(project_dict, model_dict, dataset_dict, TEST_SIZE):
     
     with TemporaryDirectory() as tempdir:
         # upload model to s3
-        local_model_path = os.path.join(tempdir, f'{model_dict['name']}.pkl')
+        local_model_path = os.path.join(tempdir, f"{model_dict['name']}.pkl")
         with open(local_model_path,'wb') as f:
             pickle.dump(model,f)
 
-        model_path = f'{project_dict['prefix']}/{model_dict['name']}.pkl'
+        model_path = f"{project_dict['prefix']}/{model_dict['name']}.pkl"
         s3.upload_file(local_model_path, project_dict['bucket'], model_path)
 
         # upload vectorizer to s3
-        local_vectorizer_path = os.path.join(tempdir, 'vectorizer.pkl')
+        local_vectorizer_path = os.path.join(tempdir, f"{model_dict['name']}_vectorizer.pkl")
         with open(local_vectorizer_path,'wb') as f:
             pickle.dump(vectorizer,f)
 
-        vectorizer_path = f'{project_dict['prefix']}/vectorizer.pkl'
+        vectorizer_path = f"{project_dict['prefix']}/{model_dict['name']}_vectorizer.pkl"
         s3.upload_file(local_vectorizer_path, project_dict['bucket'], vectorizer_path)
 
-        model_dict['saved'] = model_path
         model_db = Model.query.get_or_404(model_dict['id'])
+        model_db.saved = model_path
         db.session.add(model_db)
         db.session.commit()
         print('model saved to', model_path)
@@ -105,7 +105,8 @@ def run_training(project_dict, model_dict, dataset_dict, TEST_SIZE):
     confidences = np.clip(confidences, epsilon, 1.0)
     entropies = -np.sum(confidences * np.log2(confidences), axis=1)
 
-    X_data_instance_ids = df['id']
+    X_data_instance_ids = df['id'].tolist()
+
     for index, entropy in enumerate(entropies):
         data_instance = DataInstance.query.get_or_404(X_data_instance_ids[index])
         data_instance.entropy = entropy
