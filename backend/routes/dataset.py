@@ -146,10 +146,8 @@ def export_csv(project_id):
     ]
 })
 def return_batch_for_labelling(project_id):
-    batch_size = request.json.get('batch_size')
+    batch_size = request.json.get('batch_size', 20) 
 
-    if not batch_size:
-        batch_size = 20
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
@@ -274,15 +272,14 @@ def upload_files(id):
                 continue
 
             local_filepath = os.path.join(root, file_name)
-            unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file_name)[1]}"
             # s3_filepath = os.path.join(project.prefix, unique_filename)
-            s3_filepath = f'{project.prefix}/{unique_filename}'
+            s3_filepath = f'{project.prefix}/{file_name}'
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
             
             # Save to database
-            data_instance = DataInstance(data=unique_filename, dataset_id=dataset.id)
+            data_instance = DataInstance(data=file_name, dataset_id=dataset.id)
             db.session.add(data_instance)
 
             # Remove file from local storage
