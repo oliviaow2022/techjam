@@ -51,18 +51,19 @@ def upload_file(dataset_id):
             local_filepath = os.path.join(root, file_name)
             # s3_filepath = os.path.join(project.prefix, unique_filename)
             s3_filepath = f'{project.prefix}/{file_name}'
+            print(s3_filepath)
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
             
             # Save to database
             annotation = Annotation(filename=file_name, dataset_id=dataset.id, image_id=i)
+            print(annotation.to_dict())
             db.session.add(annotation)
+            db.session.commit()
 
             # Remove file from local storage
             os.remove(local_filepath)
-
-    db.session.commit()
 
     return jsonify({'message': 'Files successfully uploaded into dataset'}), 201
 
