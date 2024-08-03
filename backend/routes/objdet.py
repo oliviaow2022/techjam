@@ -13,13 +13,16 @@ objdet_routes = Blueprint('objdet', __name__)
 
 @objdet_routes.route('<int:dataset_id>/upload', methods=['POST'])
 def upload_file(dataset_id):
+    print('UPLOADING FILE')
     print(request.files)
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
     
     dataset = Dataset.query.get_or_404(dataset_id, description="Dataset ID not found")
+    print(dataset)
     project = Project.query.get_or_404(dataset.project_id, description="Project ID not found")
+    print(project)
 
     file = request.files['file']
     print(file.filename)
@@ -48,18 +51,19 @@ def upload_file(dataset_id):
             local_filepath = os.path.join(root, file_name)
             # s3_filepath = os.path.join(project.prefix, unique_filename)
             s3_filepath = f'{project.prefix}/{file_name}'
+            print(s3_filepath)
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
             
             # Save to database
             annotation = Annotation(filename=file_name, dataset_id=dataset.id, image_id=i)
+            print(annotation.to_dict())
             db.session.add(annotation)
+            db.session.commit()
 
             # Remove file from local storage
             os.remove(local_filepath)
-
-    db.session.commit()
 
     return jsonify({'message': 'Files successfully uploaded into dataset'}), 201
 

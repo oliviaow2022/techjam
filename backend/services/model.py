@@ -133,7 +133,7 @@ def train_model(self, model, model_dict, project_dict, train_dataloader, val_dat
         model.load_state_dict(torch.load(best_model_params_path))
 
         # upload model to s3
-        model_path = f"{project_dict['prefix']}/{model_dict['name']}.pth"
+        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pth"
         s3.upload_file(best_model_params_path, project_dict['bucket'], model_path)
         
         print(model_dict)

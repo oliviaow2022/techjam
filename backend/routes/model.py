@@ -13,38 +13,6 @@ from botocore.exceptions import ClientError
 
 model_routes = Blueprint('model', __name__)
 
-@model_routes.route('/create', methods=['POST'])
-@swag_from({
-    'tags': ['Model'],
-    'description': 'model name must be in this list [ResNet-18, DenseNet-121, AlexNet, ConvNext Base]!!',
-    'parameters': [
-        {
-            'name': 'body',
-            'in': 'body',
-            'required': True,
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'name': {'type': 'string'},
-                    'project_id': {'type': 'integer'}
-                },
-                'required': ['name', 'project_id']
-            }
-        }
-    ]
-})
-def create_model():
-    name = request.json.get('name')
-    project_id = request.json.get('project_id')
-
-    if not (name or project_id):
-        return jsonify({"error": "Bad Request", "message": "Name and user_id are required"}), 400
-
-    model = Model(name=name, project_id=project_id)
-    db.session.add(model)
-    db.session.commit()
-
-    return jsonify(model.to_dict()), 201
 
 @model_routes.route('/<int:project_id>/train', methods=['POST'])
 @swag_from({
@@ -117,39 +85,6 @@ def new_training_job(project_id):
     db.session.commit()
 
     return jsonify({'task_id': task.id}), 200
-
-
-@model_routes.route('/<int:id>/label', methods=['POST'])
-@swag_from({
-    'tags': ['Model'],
-    'parameters': [
-        {
-            'name': 'id',
-            'in': 'path',
-            'type': 'integer',
-            'required': True,
-            'description': 'The ID of the model'
-        }
-    ],
-})
-def run_model(id):
-    print('running model...')
-
-    model = Model.query.get_or_404(id, description="Model ID not found")
-    project = Project.query.get_or_404(model.project_id, description="Project ID not found")
-    dataset = Dataset.query.filter_by(project_id=project.id).first()
-
-    # check that model has been trained
-    if not model.saved:
-        return jsonify({'Saved model does not exist'}), 404
-
-    from app import app
-    app_context = app.app_context()
-
-    training_thread = threading.Thread(target=run_labelling_using_model, args=(app_context, project, dataset, model))
-    training_thread.start()
-
-    return jsonify({'message': 'Job started'}), 200
 
 
 # for debugging only
