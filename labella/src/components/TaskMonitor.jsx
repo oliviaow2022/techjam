@@ -9,6 +9,7 @@ const TaskMonitor = ({ resultId, onSuccess }) => {
 
     // Connect and monitor task
     socket.emit("monitor_task", { result_id: resultId });
+    console.log('connected to socket with', resultId)
 
     // Listen for updates
     socket.on("task_update", (data) => {
@@ -40,7 +41,11 @@ const TaskMonitor = ({ resultId, onSuccess }) => {
     <div>
       {taskInfo && (
         <div className="mb-8">
-          <p>Job ID: {taskInfo.id}</p>
+          {taskInfo && taskInfo.id ? (
+            <p>Job ID: {taskInfo.id}</p>
+          ) : (
+            <p>Job ID: {resultId}</p>
+          )}
           <p>State: {taskInfo.state}</p>
           {taskInfo.state === "PROGRESS" && (
             <div className="w-full bg-gray-200 rounded-full h-4 mt-2">

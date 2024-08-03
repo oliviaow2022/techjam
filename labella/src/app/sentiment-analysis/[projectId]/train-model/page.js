@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 import Navbar from "@/components/nav/NavBar";
 import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
@@ -28,6 +29,7 @@ const modelData = [
 
 
 export default function TrainModel({ params }) {
+  const router = useRouter();
   const [errors, setErrors] = useState({});
   const [selectedModel, setSelectedModel] = useState(null);
 
@@ -40,10 +42,13 @@ export default function TrainModel({ params }) {
       let apiEndpoint =
         process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/train`;
 
-        toast.success("Job created")
       try {
         const response = await axios.post(apiEndpoint, selectedModel);
         console.log(response)
+        if (response.status == 200) {
+          toast.success(`Job ID ${response.data.task_id} created`)
+          router.push(`/sentiment-analysis/${params.projectId}/statistics`)
+        }
       } catch (error) {
         toast.error("Error");
         console.log(error);

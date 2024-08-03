@@ -32,7 +32,7 @@ const models = [
   },
 ];
 
-export default function TrainModelButton({ params }) {
+export default function ImageClassificationTrainModel({ params }) {
   const router = useRouter();
 
   const [formData, setFormData] = useState({

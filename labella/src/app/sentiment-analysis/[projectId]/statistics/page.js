@@ -40,7 +40,7 @@ export default function SentimentAnalysisStatistics({ params }) {
     try {
       toast.success("Downloading file");
       let response = await axios.get(
-        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/download`,
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${modelId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
         }
@@ -48,13 +48,14 @@ export default function SentimentAnalysisStatistics({ params }) {
 
       console.log(response);
       if (response.status === 200) {
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/zip' }));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `model.pth`); // Set the file name here
+        link.setAttribute("download", 'model_and_vectorizer.zip'); // Set the file name here
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
       }
     } catch (error) {
       console.log(error);

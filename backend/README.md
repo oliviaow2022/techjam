@@ -15,7 +15,6 @@ additional dependencies
 ```
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install git+https://github.com/modAL-python/modAL.git
-pip install flask-socketio
 ```
 
 make database and add starting data
@@ -65,6 +64,8 @@ General flow of the backend
     - Confidence/entropy is saved in the database under DataInstance.entropy
 6. **Display training results** (history.py)
 7. **User can download model / dataset** (model.py / dataset.py
+
+ER diagram ![alt text](<ER diagram techjam.drawio.png>)
 
 
 ## Setting up Celery with Redis

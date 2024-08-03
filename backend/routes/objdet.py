@@ -46,15 +46,14 @@ def upload_file(dataset_id):
                 continue
 
             local_filepath = os.path.join(root, file_name)
-            unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file_name)[1]}"
             # s3_filepath = os.path.join(project.prefix, unique_filename)
-            s3_filepath = f'{project.prefix}/{unique_filename}'
+            s3_filepath = f'{project.prefix}/{file_name}'
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
             
             # Save to database
-            annotation = Annotation(filename=unique_filename, dataset_id=dataset.id, image_id=i)
+            annotation = Annotation(filename=file_name, dataset_id=dataset.id, image_id=i)
             db.session.add(annotation)
 
             # Remove file from local storage

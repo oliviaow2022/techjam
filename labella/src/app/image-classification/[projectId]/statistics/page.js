@@ -10,7 +10,7 @@ import Navbar from "@/components/nav/NavBar";
 import TaskMonitor from "@/components/TaskMonitor";
 import Arrow from "@/components/Arrow";
 
-export default function Statistics({ params }) {
+export default function ImageClassificationStatistics({ params }) {
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/history/${params.projectId}/info`;
 
