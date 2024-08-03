@@ -6,8 +6,12 @@ import InputBox from "@/components/forms/InputBox";
 import InputPassword from '@/components/InputPassword';
 import axios from 'axios';
 import { useRouter } from 'next/navigation'
+import { setJwtToken } from '@/store/authSlice';
+import { useAppDispatch } from '@/store/store';
 
 export default function Login() {
+    const dispatch = useAppDispatch(); 
+
     const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + '/user/login';
     const [formData, setFormData] = useState({
         username: '',
@@ -53,7 +57,8 @@ export default function Login() {
                 if(response.status == 200) {
                     setWrongPW(false);
                     localStorage.setItem('user_id', response.data.user_id)
-                    localStorage.setItem('jwt', response.data.token)
+                    dispatch(setJwtToken(response.data.token))
+                    // localStorage.setItem('jwt', response.data.token)
                     router.push("/home")
                 }
             } catch (error) {

@@ -13,13 +13,16 @@ objdet_routes = Blueprint('objdet', __name__)
 
 @objdet_routes.route('<int:dataset_id>/upload', methods=['POST'])
 def upload_file(dataset_id):
+    print('UPLOADING FILE')
     print(request.files)
 
     if 'file' not in request.files:
         return jsonify({"error": "No file part in the request"}), 400
     
     dataset = Dataset.query.get_or_404(dataset_id, description="Dataset ID not found")
+    print(dataset)
     project = Project.query.get_or_404(dataset.project_id, description="Project ID not found")
+    print(project)
 
     file = request.files['file']
     print(file.filename)

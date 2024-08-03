@@ -15,6 +15,7 @@ from routes.history import history_routes
 from routes.epoch import epoch_routes
 from routes.general import general_routes
 from routes.senti import senti_routes
+from routes.objdet import objdet_routes
 from dotenv import load_dotenv
 from celery import Celery, Task
 from flask import Flask
@@ -70,6 +71,7 @@ def create_app() -> Flask:
     app.register_blueprint(history_routes, url_prefix='/history')
     app.register_blueprint(epoch_routes, url_prefix='/epoch')
     app.register_blueprint(senti_routes, url_prefix='/senti')
+    app.register_blueprint(objdet_routes, url_prefix='/objdet')
     app.register_blueprint(general_routes)
 
     return app, celery_app, socketio

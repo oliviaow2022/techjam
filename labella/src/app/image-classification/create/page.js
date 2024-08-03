@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useAppSelector } from "@/store/store";
 
 import Navbar from "@/components/nav/NavBar";
 import InputBox from "@/components/forms/InputBox";
@@ -11,8 +12,9 @@ import FileInput from "@/components/forms/FileInput";
 import axios from "axios";
 
 export default function ImageClassification() {
+  const router = useRouter();
   const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
-  const jwtToken = localStorage.getItem("jwt");
+  const jwtToken = useAppSelector((state) => state.auth.jwtToken);
   console.log(jwtToken)
 
   const [zipFile, setZipFile] = useState(null);
@@ -76,8 +78,6 @@ export default function ImageClassification() {
     }
     return errors;
   };
-
-  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();

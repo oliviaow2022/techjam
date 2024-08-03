@@ -14,7 +14,7 @@ senti_routes = Blueprint('senti', __name__)
 
 @senti_routes.route('<int:dataset_id>/upload', methods=['POST'])
 def upload_file(dataset_id):
-    text_column = request.form.get("text_column")
+    # text_column = request.form.get("text_column")
     file = request.files['file']
 
     if not all([file, text_column]):
