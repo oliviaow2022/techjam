@@ -418,13 +418,10 @@ export default function ObjectDetection({ params }) {
         y2: y,
       });
 
-      if (
-        currentArea.index !== -1 &&
-        rectangles[currentArea.index].label
-      ) {
+      if (currentArea.index !== -1 && rectangles[currentArea.index].label) {
         setLabel(rectangles[currentArea.index].label);
       } else {
-        setLabel("")
+        setLabel("");
       }
     };
 
@@ -506,9 +503,9 @@ export default function ObjectDetection({ params }) {
     };
 
     function calculateRectangleArea(rectangle) {
-      let width = Math.abs(rectangle.x2 - rectangle.x1)
-      let height = Math.abs(rectangle.y2 - rectangle.y1)
-      return width * height
+      let width = Math.abs(rectangle.x2 - rectangle.x1);
+      let height = Math.abs(rectangle.y2 - rectangle.y1);
+      return width * height;
     }
 
     const handleMouseUp = () => {
@@ -517,10 +514,10 @@ export default function ObjectDetection({ params }) {
         if (clickedArea.index === -1 && currentRect) {
           // rectangle area too small
           if (calculateRectangleArea(currentRect) < 150) {
-            return [...prevRectangles]
+            return [...prevRectangles];
           }
           return [...prevRectangles, currentRect];
-        // adjusting current rectangle
+          // adjusting current rectangle
         } else if (clickedArea.index !== -1) {
           const newRectangles = [...prevRectangles];
           const selectedBox = { ...newRectangles[clickedArea.index] };
@@ -570,7 +567,7 @@ export default function ObjectDetection({ params }) {
         toast.error("Invalid selection");
         return;
       }
-      
+
       setRectangles((prevRectangles) => {
         const updatedRectangles = [...prevRectangles];
         updatedRectangles.splice(index, 1);
@@ -592,6 +589,9 @@ export default function ObjectDetection({ params }) {
           <ObjectDetectionSideNav params={params.projectId} />
           <div className="ml-0 mt-32">
             <div className="flex flex-row">
+              <p className="text-xl text-[#D887F5] font-bold mb-8 mt-40">
+                Object Detection
+              </p>
               <div className="p-4">
                 <div className="flex flex-row items-center mb-5">
                   <input
@@ -605,7 +605,7 @@ export default function ObjectDetection({ params }) {
                     className="rounded-lg"
                     onClick={() => deleteRectangleByIndex(clickedArea.index)}
                   >
-                    <RiDeleteBin5Fill color='#D887F5'/>
+                    <RiDeleteBin5Fill color="#D887F5" />
                   </button>
                 </div>
                 {Object.entries(labelCounts).map(([label, count]) => (
