@@ -65,6 +65,8 @@ General flow of the backend
 6. **Display training results** (history.py)
 7. **User can download model / dataset** (model.py / dataset.py
 
+ER diagram ![alt text](<ER diagram techjam.drawio.png>)
+
 
 ## Setting up Celery with Redis
 ensure celery and redis are installed 
