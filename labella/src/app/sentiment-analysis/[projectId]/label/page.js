@@ -105,7 +105,7 @@ export default function SentimentAnalysisLabelling({ params }) {
               >
                 <Arrow direction="left" />
               </button>
-              <div className="w-96 h-64 rounded-lg border-2 border-white p-4">
+              <div className="w-96 h-64 rounded-lg border-2 border-white p-4 overflow-y-scroll">
                 <p className="text-white font-bold mb-2">Data</p>
                 {batchData[currentIndex]?.data}
               </div>

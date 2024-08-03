@@ -30,7 +30,7 @@ export default function Home() {
   });
 
   const redirect = (project) => {
-    if (project.type === "Single Label Classification") {
+    if (project.type === "Single Label Classification" || project.type === "Multilabel Classification") {
       router.push(`/image-classification/${project.id}/label`);
     } else {
       router.push(`/sentiment-analysis/${project.id}/label`);
@@ -51,7 +51,7 @@ export default function Home() {
                   onClick={() => redirect(project)}
                 >
                   <p>{project.name}</p>
-                  {project.type === "Single Label Classification" ? (
+                  {(project.type === "Single Label Classification" || project.type === "Multilabel Classification") ? (
                     <div className="flex flex-row items-center">
                       <div className="w-3 h-3 rounded-lg bg-[#FF52BF] mr-2" />
                       Image Classification
