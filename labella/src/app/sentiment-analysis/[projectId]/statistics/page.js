@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import axios from "axios";
 
-import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
+import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
 import EpochChart from "@/components/EpochChart";
 import Navbar from "@/components/nav/NavBar";
 import TaskMonitor from "@/components/TaskMonitor";
 import Arrow from "@/components/Arrow";
 
-export default function ImageClassificationStatistics({ params }) {
+export default function SentimentAnalysisStatistics({ params }) {
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/history/${params.projectId}/info`;
 
@@ -40,7 +40,7 @@ export default function ImageClassificationStatistics({ params }) {
     try {
       toast.success("Downloading file");
       let response = await axios.get(
-        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/download`,
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${modelId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
         }
@@ -48,13 +48,14 @@ export default function ImageClassificationStatistics({ params }) {
 
       console.log(response);
       if (response.status === 200) {
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/zip' }));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `model.pth`); // Set the file name here
+        link.setAttribute("download", 'model_and_vectorizer.zip'); // Set the file name here
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
       }
     } catch (error) {
       console.log(error);
@@ -89,11 +90,11 @@ export default function ImageClassificationStatistics({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <ImageClassificationSideNav params={params.projectId} />
-        <div className="ml-0 lg:ml-20 mt-32">
+        <SentimentAnalysisSideNav params={params.projectId} />
+        <div className="ml-0 lg:ml-20 mt-32 w-full">
           <div className="flex flex-row justify-between">
             <p className="text-xl text-[#FF52BF] font-bold mb-8">
-              Image Classification
+              Sentiment Analysis
             </p>
             {historyData && (
               <div className="flex flex-row items-center">
@@ -164,47 +165,50 @@ export default function ImageClassificationStatistics({ params }) {
                   <p>{historyData.history?.f1}</p>
                 </div>
               </div>
-              {historyData.epochs && <EpochChart epochs={historyData.epochs} />}
-              <table className="table-auto w-full border-collapse border border-slate-500 my-5">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 border border-slate-600">Epoch</th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Train Accuracy
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Train Loss
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Validation Accuracy
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
-                      Validation Loss
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyData.epochs?.map((epoch, epochIndex) => (
-                    <tr key={epochIndex}>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epochIndex + 1}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.train_acc}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.train_loss}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.val_acc}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
-                        {epoch.val_loss}
-                      </td>
+              {historyData.epochs.length > 0 && 
+              <>
+                <EpochChart epochs={historyData.epochs} />
+                <table className="table-auto w-full border-collapse border border-slate-500 my-5">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 border border-slate-600">Epoch</th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Train Accuracy
+                      </th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Train Loss
+                      </th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Validation Accuracy
+                      </th>
+                      <th className="px-4 py-2 border border-slate-600">
+                        Validation Loss
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {historyData.epochs?.map((epoch, epochIndex) => (
+                      <tr key={epochIndex}>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epochIndex + 1}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.train_acc}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.train_loss}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.val_acc}
+                        </td>
+                        <td className="border px-4 py-2 border-slate-700">
+                          {epoch.val_loss}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>}
             </div>
           )}
         </div>

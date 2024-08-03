@@ -1,14 +1,17 @@
-from flask import Blueprint, request, jsonify
+import zipfile
+import io
+import csv
+import json
+import os
+import uuid
+
+from flask import Blueprint, request, jsonify, send_file
 from models import db, Model, Dataset, Project, DataInstance
 import pandas as pd
 from flasgger import swag_from
-import json
 from werkzeug.utils import secure_filename
-import os
-import uuid
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 from services.dataset import get_dataset_config
-import zipfile
 
 dataset_routes = Blueprint('dataset', __name__)
 
@@ -78,6 +81,45 @@ def return_dataframe(id):
     return df.to_json(orient='records')
 
 
+@dataset_routes.route('/<int:project_id>/download', methods=['GET'])
+def export_csv(project_id):
+    Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project_id).first()
+
+    # Query DataInstance records based on dataset_id
+    data_instances = DataInstance.query.filter_by(dataset_id=dataset.id).all()
+
+    if not data_instances:
+        return jsonify({"error": "No data instances found"}), 404
+    
+    # Create an in-memory output file
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write CSV header
+    writer.writerow(['ID', 'Data', 'Labels', 'Manually Processed', 'Entropy'])
+
+    # Write CSV rows
+    for instance in data_instances:
+        writer.writerow([
+            instance.id,
+            instance.data,
+            instance.labels or '',  # Handle None or empty string
+            instance.manually_processed,
+            instance.entropy
+        ])
+
+    output.seek(0)
+
+    # Send the CSV file as a response
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'{dataset.name}.csv'
+    )
+
+
 @dataset_routes.route('/<int:project_id>/batch', methods=['POST'])
 @swag_from({
     'tags': ['Dataset'],
@@ -104,10 +146,8 @@ def return_dataframe(id):
     ]
 })
 def return_batch_for_labelling(project_id):
-    batch_size = request.json.get('batch_size') 
+    batch_size = request.json.get('batch_size', 20) 
 
-    if not batch_size:
-        batch_size = 20
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
@@ -120,6 +160,15 @@ def return_batch_for_labelling(project_id):
         DataInstance.dataset_id == dataset.id,
         DataInstance.manually_processed == False
     ).order_by(DataInstance.entropy.desc()).limit(batch_size).all()
+    
+    if len(data_instances) < batch_size:
+        top_up_count = batch_size - len(data_instances)
+        top_up_data_instances = DataInstance.query.filter(
+            DataInstance.dataset_id == dataset.id,
+            DataInstance.manually_processed == True
+        ).order_by(DataInstance.entropy.desc()).limit(top_up_count).all()
+        data_instances.extend(top_up_data_instances)
+    
     data_list = [instance.to_dict() for instance in data_instances]
     print(data_list)
     return jsonify(data_list), 200
@@ -223,15 +272,14 @@ def upload_files(id):
                 continue
 
             local_filepath = os.path.join(root, file_name)
-            unique_filename = f"{uuid.uuid4().hex}{os.path.splitext(file_name)[1]}"
             # s3_filepath = os.path.join(project.prefix, unique_filename)
-            s3_filepath = f'{project.prefix}/{unique_filename}'
+            s3_filepath = f'{project.prefix}/{file_name}'
             
             # Upload to S3
             s3.upload_file(local_filepath, os.getenv('S3_BUCKET'), s3_filepath)
             
             # Save to database
-            data_instance = DataInstance(data=unique_filename, dataset_id=dataset.id)
+            data_instance = DataInstance(data=file_name, dataset_id=dataset.id)
             db.session.add(data_instance)
 
             # Remove file from local storage
