@@ -33,6 +33,7 @@ export default function ObjectDetection({ params }) {
       try {
         setIsLoading(true);
         const batchResponse = await axios.post(batchApiEndpoint, {});
+        console.log(batchResponse.data);
         setImages(batchResponse.data);
 
         if (batchResponse.data[currentIndex].bboxes) {
@@ -50,7 +51,6 @@ export default function ObjectDetection({ params }) {
           );
           setRectangles(scaledBboxes);
         }
-        console.log(batchResponse.data);
       } catch (error) {
         console.log(error);
       } finally {
@@ -588,10 +588,10 @@ export default function ObjectDetection({ params }) {
         <div className="flex flex-row">
           <ObjectDetectionSideNav params={params.projectId} />
           <div className="ml-0 mt-32">
+            <p className="text-xl text-[#D887F5] font-bold mx-4 mb-4">
+              Object Detection
+            </p>
             <div className="flex flex-row">
-              <p className="text-xl text-[#D887F5] font-bold mb-8 mt-40">
-                Object Detection
-              </p>
               <div className="p-4">
                 <div className="flex flex-row items-center mb-5">
                   <input

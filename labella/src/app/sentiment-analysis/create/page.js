@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import { useSelector } from "react-redux";
 
 import Navbar from "@/components/nav/NavBar";
 import FileInput from "@/components/forms/FileInput";
@@ -12,6 +13,8 @@ import axios from "axios";
 
 export default function SentimentAnalysis() {
   const router = useRouter();
+  const jwtToken = useSelector((state) => state.auth.jwtToken);
+  console.log(jwtToken);
 
   const [formData, setFormData] = useState({
     projectName: "test-senti",
@@ -62,8 +65,8 @@ export default function SentimentAnalysis() {
         };
         console.log(payload);
 
-        const jwtToken = localStorage.getItem("jwt");
-        console.log("Token from localStorage:", jwtToken);
+        // const jwtToken = localStorage.getItem("jwt");
+        console.log("Token from slice:", jwtToken);
 
         const createResponse = await axios.post(createEndpoint, payload, {
           headers: {

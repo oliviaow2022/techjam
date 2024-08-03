@@ -53,19 +53,19 @@ def run_training(project_dict, model_dict, dataset_dict, TEST_SIZE):
     
     with TemporaryDirectory() as tempdir:
         # upload model to s3
-        local_model_path = os.path.join(tempdir, f"{model_dict['name']}.pkl")
+        local_model_path = os.path.join(tempdir, f"{model_dict['name']}_{model_dict['id']}.pkl")
         with open(local_model_path,'wb') as f:
             pickle.dump(model,f)
 
-        model_path = f"{project_dict['prefix']}/{model_dict['name']}.pkl"
+        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pkl"
         s3.upload_file(local_model_path, project_dict['bucket'], model_path)
 
         # upload vectorizer to s3
-        local_vectorizer_path = os.path.join(tempdir, f"{model_dict['name']}_vectorizer.pkl")
+        local_vectorizer_path = os.path.join(tempdir, f"{model_dict['name']}_{model_dict['id']}_vectorizer.pkl")
         with open(local_vectorizer_path,'wb') as f:
             pickle.dump(vectorizer,f)
 
-        vectorizer_path = f"{project_dict['prefix']}/{model_dict['name']}_vectorizer.pkl"
+        vectorizer_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}_vectorizer.pkl"
         s3.upload_file(local_vectorizer_path, project_dict['bucket'], vectorizer_path)
 
         model_db = Model.query.get_or_404(model_dict['id'])
