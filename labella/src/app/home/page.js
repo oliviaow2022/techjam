@@ -1,15 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux"
+
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/nav/NavBar";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import axios from "axios";
 
 export default function Home() {
-  const userId = localStorage.getItem("user_id");
   const router = useRouter();
+  const userId = useSelector((state) => state.auth.userId);
+  console.log(userId);
 
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/user/${userId}/projects`;

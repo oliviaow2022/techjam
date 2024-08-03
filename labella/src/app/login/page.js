@@ -6,11 +6,12 @@ import InputBox from "@/components/forms/InputBox";
 import InputPassword from '@/components/InputPassword';
 import axios from 'axios';
 import { useRouter } from 'next/navigation'
-import { setJwtToken } from '@/store/authSlice';
-import { useAppDispatch } from '@/store/store';
+import { setJwtToken, setUserId } from '@/store/authSlice';
+import { useDispatch } from "react-redux"
 
 export default function Login() {
-    const dispatch = useAppDispatch(); 
+    const router = useRouter();
+    const dispatch = useDispatch(); 
 
     const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + '/user/login';
     const [formData, setFormData] = useState({
@@ -40,7 +41,7 @@ export default function Login() {
         }
         return errors;
     };
-    const router = useRouter();
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const validationErrors = validate();
@@ -56,9 +57,9 @@ export default function Login() {
                 // Handle successful submission
                 if(response.status == 200) {
                     setWrongPW(false);
-                    localStorage.setItem('user_id', response.data.user_id)
+                    console.log(response.data.user_id, response.data.token)
+                    dispatch(setUserId(response.data.user_id))
                     dispatch(setJwtToken(response.data.token))
-                    // localStorage.setItem('jwt', response.data.token)
                     router.push("/home")
                 }
             } catch (error) {

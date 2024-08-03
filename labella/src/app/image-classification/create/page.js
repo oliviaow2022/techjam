@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/store/store";
+import { useSelector } from "react-redux";
 
 import Navbar from "@/components/nav/NavBar";
 import InputBox from "@/components/forms/InputBox";
@@ -14,8 +14,8 @@ import axios from "axios";
 export default function ImageClassification() {
   const router = useRouter();
   const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/create";
-  const jwtToken = useAppSelector((state) => state.auth.jwtToken);
-  console.log(jwtToken)
+  const jwtToken = useSelector((state) => state.auth.jwtToken);
+  console.log(jwtToken);
 
   const [zipFile, setZipFile] = useState(null);
 
@@ -126,11 +126,13 @@ export default function ImageClassification() {
           toast.success("Success");
         }
 
-        router.push(`/image-classification/${createResponse.data.project.id}/label`);
+        router.push(
+          `/image-classification/${createResponse.data.project.id}/label`
+        );
         // Reset form or handle successful submission
       } catch (error) {
         console.error("Error submitting form:", error);
-      } 
+      }
     }
   };
 
@@ -226,7 +228,12 @@ export default function ImageClassification() {
               onJsonChange={handleJsonChange}
             />
 
-            <FileInput label="Upload Dataset" handleFileChange={handleFileChange} error={errors.zipFile} fileTypes={".zip"}/>
+            <FileInput
+              label="Upload Dataset"
+              handleFileChange={handleFileChange}
+              error={errors.zipFile}
+              fileTypes={".zip"}
+            />
 
             <button
               type="submit"

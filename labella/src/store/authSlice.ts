@@ -17,8 +17,11 @@ export const authSlice = createSlice({
     setJwtToken: (state, action: PayloadAction<string>) => {
       state.jwtToken = action.payload;
     },
+    setUserId: (state, action: PayloadAction<string>) => {
+      state.userId = action.payload;
+    },
   },
 });
 
-export const { setJwtToken } = authSlice.actions;
+export const { setJwtToken, setUserId } = authSlice.actions;
 export const authReducer = authSlice.reducer;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { useAppSelector } from "@/store/store";
+import { useSelector } from "react-redux";
 
 import Navbar from "@/components/nav/NavBar";
 import FileInput from "@/components/forms/FileInput";
@@ -13,8 +13,8 @@ import axios from "axios";
 
 export default function SentimentAnalysis() {
   const router = useRouter();
-  const jwtToken = useAppSelector((state) => state.auth.jwtToken);
-  console.log(jwtToken)
+  const jwtToken = useSelector((state) => state.auth.jwtToken);
+  console.log(jwtToken);
 
   const [formData, setFormData] = useState({
     projectName: "test-senti",

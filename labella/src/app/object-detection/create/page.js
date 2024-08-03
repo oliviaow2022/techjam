@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { useAppSelector } from "@/store/store";
+import { useSelector } from "react-redux"
 
 import Navbar from "@/components/nav/NavBar";
 import FileInput from "@/components/forms/FileInput";
@@ -13,7 +13,8 @@ import axios from "axios";
 
 export default function CreateObjectDetectionProject() {
   const router = useRouter();
-  const jwtToken = useAppSelector((state) => state.auth.jwtToken);
+  const jwtToken = useSelector((state) => state.auth.jwtToken);
+  console.log(jwtToken)
 
   const [formData, setFormData] = useState({
     projectName: "test-objdet",
@@ -64,8 +65,6 @@ export default function CreateObjectDetectionProject() {
           }, {}),
         };
         console.log(payload);
-
-        console.log("Token from slice:", jwtToken);
 
         const createResponse = await axios.post(createEndpoint, payload, {
           headers: {
