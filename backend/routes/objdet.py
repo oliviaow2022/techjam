@@ -144,7 +144,7 @@ def label_data(annotation_id):
 
 
 @objdet_routes.route('<int:project_id>/train', methods=['POST'])
-def train_model(project_id):
+def run_training_model(project_id):
     # dataloader = get_data_loader(dataset)
     # train_loader, val_loader = split_train_data(dataloader)
 
@@ -175,11 +175,10 @@ def train_model(project_id):
         
     dataset = Dataset.query.filter_by(project_id=project.id).first()
     annotations = Annotation.query.filter_by(dataset_id=dataset.id).with_entities(Annotation.id).all()
-    annotation_ids_list = [id[0] for id in annotations]
-    dataset = ObjDetDataset(annotation_ids_list, project.bucket, project.prefix)
-    dataloader = get_data_loader(dataset)
-    train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
-
+    annotations_dict_list = [annotation.to_dict() for annotation in annotations]
+    # dataloader = get_data_loader(dataset)
+    # train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
+    print(dataset.to_dict())
     history = History(model_id=model.id)
     db.session.add(history)
     db.session.commit()
@@ -187,7 +186,7 @@ def train_model(project_id):
     from app import app
     app_context = app.app_context()
 
-    training_thread = threading.Thread(target=run_training, args=(train_loader, val_loader, app_context, project, dataset, model, num_epochs, train_test_split, batch_size))
+    training_thread = threading.Thread(target=run_training, args=(project.to_dict(), dataset.to_dict(), model.to_dict(), annotations_dict_list, history.to_dict(), num_epochs, train_test_split, batch_size))
     training_thread.start()
 
     return jsonify({'message': 'Training started'}), 200
@@ -242,5 +241,5 @@ def train_model(project_id):
     # db.session.commit()
     # print('model saved to', model_save_path)
 
-    return jsonify({"message": "Model trained successfully", "model_path": model_save_path}), 200
+    # return jsonify({"message": "Model trained successfully", "model_path": model_save_path}), 200
 
