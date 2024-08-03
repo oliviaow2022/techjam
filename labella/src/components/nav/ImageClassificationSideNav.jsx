@@ -1,4 +1,8 @@
+import Link from 'next/link';
+import { usePathname } from 'next/navigation'
+
 export default function ImageClassificationSideNav({ params }) {
+  const currentPath = usePathname();
   const menuOptions = [
     {
       id: 0,
@@ -22,9 +26,9 @@ export default function ImageClassificationSideNav({ params }) {
         {menuOptions.map((option, index) => (
           <p
             key={index}
-            className="hover:cursor-pointer hover:text-[#FF52BF] text-white"
+            className={`hover:cursor-pointer ${currentPath === option.link ? 'text-[#FF52BF]' : 'text-white'}`}
           >
-            <a href={option.link}>{option.name}</a>
+            <Link href={option.link}>{option.name}</Link>
           </p>
         ))}
       </div>

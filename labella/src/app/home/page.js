@@ -93,7 +93,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/object-detection">
+          <Link href="/object-detection/create">
             <div className="bg-[#D887F5] h-56 w-64 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
               <Image
                 src="/object detection.png"

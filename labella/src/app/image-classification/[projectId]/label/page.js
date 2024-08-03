@@ -119,7 +119,6 @@ export default function Label({ params }) {
             idx === currentIndex ? { ...img, labels: updatedLabelsList } : img
           );
           setImages(updatedImages);
-          console.log("uuuu",updatedLabelsList)
         }
       } catch (err) {
         console.error('Error updating labels:', err);
@@ -148,7 +147,6 @@ export default function Label({ params }) {
           <p className="text-xl text-[#FF52BF] font-bold mb-8 mt-40">
             Image Classification
           </p>
-          <p className="font-bold mb-2">Label Images</p>
           <div className="flex gap-4 mb-4 items-center justify-center">
             {images && (
               <ImageSlider
