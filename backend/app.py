@@ -122,13 +122,14 @@ def seed():
     with open(file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            data_instance = DataInstance(
-                data=row['filename'],
-                labels=row['label'],
-                dataset_id=1,
-                manually_processed=bool(row.get('manually_processed', False))
-            )
-            db.session.add(data_instance)
+            if not row['label']:
+                data_instance = DataInstance(
+                    data=row['filename'],
+                    labels=row['label'],
+                    dataset_id=1,
+                    manually_processed=bool(row.get('manually_processed', False))
+                )
+                db.session.add(data_instance)
         db.session.commit()
 
     click.echo('Seed data added successfully.')
