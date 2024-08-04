@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { useSelector } from "react-redux"
+import { useSelector } from "react-redux";
 
 import Navbar from "@/components/nav/NavBar";
 import FileInput from "@/components/forms/FileInput";
@@ -14,7 +14,7 @@ import axios from "axios";
 export default function CreateObjectDetectionProject() {
   const router = useRouter();
   const jwtToken = useSelector((state) => state.auth.jwtToken);
-  console.log(jwtToken)
+  console.log(jwtToken);
 
   const [formData, setFormData] = useState({
     projectName: "test-objdet",

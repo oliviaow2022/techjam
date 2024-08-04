@@ -2,11 +2,17 @@ import torchvision
 import numpy as np
 import torch
 import os, time
-from models import db, History, Epoch, DataInstance, Model
+import json
+
+from models import db, History, Epoch, Model, Annotation
 from tempfile import TemporaryDirectory
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Subset
 from services.S3ImageDataset import s3, ObjDetDataset
+from torchvision.ops import box_iou
+from tqdm import tqdm
+from celery import shared_task
+
 
 def get_model_instance(num_classes):
     # load an instance segmentation model pre-trained pre-trained on COCO
@@ -20,28 +26,12 @@ def get_model_instance(num_classes):
         )
     )
 
-    return model, in_features
-
+    return model
 
 def collate_fn(batch) -> tuple:
     return tuple(zip(*batch))
 
-def get_data_loader(
-    dataset,
-    batch_size: int = 1,
-    shuffle: bool = True,
-    num_workers: int = 0
-):
-    return torch.utils.data.DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        collate_fn=collate_fn
-    )
-
-
-def split_train_data(data_loader, batch_size, train_test_split_ratio):
+def split_train_data(data_loader, train_test_split_ratio):
     num_samples = len(data_loader.dataset)
     indices = list(range(num_samples))
     np.random.shuffle(indices)
@@ -49,41 +39,9 @@ def split_train_data(data_loader, batch_size, train_test_split_ratio):
     train_indices, val_indices = indices[:split], indices[split:]
     train_set = Subset(data_loader.dataset, train_indices)
     val_set = Subset(data_loader.dataset, val_indices)
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=data_loader.collate_fn)
-    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=data_loader.collate_fn)
+    train_loader = DataLoader(train_set, batch_size=data_loader.batch_size, shuffle=True, collate_fn=data_loader.collate_fn)
+    val_loader = DataLoader(val_set, batch_size=data_loader.batch_size, shuffle=False, collate_fn=data_loader.collate_fn)
     return train_loader, val_loader
-
-# def train_model(app_context, ml_model, model, project, train_loader, val_loader, optimizer, device, num_epochs):
-#     with app_context:
-#         since = time.time()
-#         model.to(device)
-
-#         # Create a temporary directory to save training checkpoints
-#         with TemporaryDirectory() as tempdir:
-#             best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
-#             torch.save(model.state_dict(), best_model_params_path)
-#             best_acc = 0.0
-#             history = []
-#             for epoch in range(num_epochs):
-#                 model.train()
-#                 i = 0
-#                 for imgs, annotations in train_loader:
-#                     i += 1
-#                     imgs = list(img.to(device) for img in imgs)
-#                     annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
-#                     loss_dict = model(imgs, annotations)
-#                     losses = sum(loss for loss in loss_dict.values())
-
-#                     optimizer.zero_grad()
-#                     losses.backward()
-#                     optimizer.step()
-
-#                     print(f"Epoch [{epoch + 1}/{num_epochs}], Iteration [{i + 1}/{len_dataloader}], Loss: {losses.item()}")
-#                     if i ==10 :
-#                         break
-#                 if epoch == 0:
-#                     break
-#             return model
 
 def train_epoch(model, train_loader, optimizer, device):
     model.train()
@@ -102,8 +60,6 @@ def train_epoch(model, train_loader, optimizer, device):
         running_loss += losses.item()
 
     return running_loss / len(train_loader)
-
-from torchvision.ops import box_iou
 
 def validate_epoch(model, val_loader, device, iou_threshold=0.5):
     model.eval()
@@ -159,87 +115,115 @@ def validate_epoch(model, val_loader, device, iou_threshold=0.5):
     recall = tp / (tp + fn) if tp + fn > 0 else 0
     return precision, recall
 
-def train_model(self, ml_model, model_dict, project_dict, train_loader, val_loader, optimizer, device, num_epochs):
+
+def train_model(self, model, model_dict, project_dict, history_dict, train_loader, val_loader, optimizer, device, num_epochs=1):
+
     since = time.time()
 
     # Create a temporary directory to save training checkpoints
     with TemporaryDirectory() as tempdir:
         best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
-        torch.save(ml_model.state_dict(), best_model_params_path)
+        torch.save(model.state_dict(), best_model_params_path)
         best_loss = float('inf')
         history = []
 
         for epoch in range(num_epochs):
-            # Each epoch has a training and validation phase
-            train_loss = train_epoch(ml_model, train_loader, optimizer, device)
-            optimizer.step()
-            precision, recall = validate_epoch(ml_model, val_loader, device)
-
-            # Cache metrics for later comparison
-            history.append([train_loss, precision, recall])
-            print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {train_loss:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}")
+            train_loss = train_epoch(model, train_loader, optimizer, device)
+            precision, recall = validate_epoch(model, val_loader, device)
 
             if train_loss < best_loss:
                 best_loss = train_loss
-                torch.save(ml_model.state_dict(), best_model_params_path)
+                torch.save(model.state_dict(), best_model_params_path)
 
-        print('ID', self.request.id)
-        self.update_state(task_id=self.request.id, state="PROGRESS", meta={'epoch': epoch, 'num_epochs': num_epochs})
+            history.append([train_loss, precision, recall])
+            print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {train_loss:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}")
+
+            # update task state
+            self.update_state(task_id=self.request.id, state="PROGRESS", meta={'epoch': epoch, 'num_epochs': num_epochs})
 
         time_elapsed = time.time() - since
         print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-        print(f'Best Train Loss: {best_loss:.4f}')
+        print(f'Best Loss: {best_loss:.4f}')
+
+        # Load best model weights
+        model.load_state_dict(torch.load(best_model_params_path))
+
+        # Download entire model
+        local_model_path = os.path.join(tempdir, 'best_model.pt')
+        torch.save(model, local_model_path)
 
         # upload model to s3
-        model_path = f'{project_dict.prefix}/{model_dict.name}.pth'
-        s3.upload_file(best_model_params_path, project_dict.bucket, model_path)
-
+        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pt"
+        s3.upload_file(local_model_path, project_dict['bucket'], model_path)
+        
         print(model_dict)
-
         # save model to db
-        model_db = Model.query.get_or_404(model_dict['id'])
-        model_db.saved = model_path
-        db.session.add(model_db)
+        history_db = History.query.get_or_404(history_dict['id'])
+        history_db.model_path = model_path
+        db.session.add(history_db)
         db.session.commit()
         print('model saved to', model_path)
 
-    return ml_model, history
+    return model, history
+
+
+def get_predictions(model, data_loader, device):
+    model.eval()
+
+    instances_updated = 0
+
+    with torch.no_grad():
+        for images, annotations in tqdm(data_loader, desc="Evaluating"):
+            images = [image.to(device) for image in images]
+            outputs = model(images)
+            for i, output in enumerate(outputs):
+                avg_confidence = output['scores'].mean().item()
+                if torch.isnan(torch.tensor(avg_confidence)): # if no bounding boxes, scores is empty, mean as nan
+                    avg_confidence = 0
+                    
+                print(output) 
+                print('annotations', annotations[i])
+                print('avg_confidence', avg_confidence)
+
+                # update confidence in db
+                annotation = Annotation.query.get_or_404(annotations[i]['id'].item())
+                annotation.confidence = avg_confidence
+                db.session.commit()
+                instances_updated += 1
     
-def run_training(self, project_dict, dataset_dict, model_dict, annotations_list, history_dict, num_epochs, train_test_split, batch_size):
-    #     dataiter = iter(train_loader)
-    #     images, labels = next(dataiter)
-    #     print(images.shape, labels.shape)
+    return instances_updated
 
-        # if model.name == 'Faster RCNN':
-        #     ml_model, num_ftrs = get_model_instance(num_classes=dataset.num_classes)
-    try:
-        objdet_dataset = ObjDetDataset(annotations_list, project_dict['bucket'], project_dict['prefix'])
-        dataloader = get_data_loader(objdet_dataset)
-        train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
 
-        dataiter = iter(train_loader)
-        images, labels = next(dataiter)
-        print(images.shape, labels.shape)
+@shared_task(bind=True)
+def run_training(self, annotation_ids, project_dict, dataset_dict, model_dict, history_dict, NUM_EPOCHS, BATCH_SIZE, TRAIN_TEST_SPLIT):
+    # reverse class_to_label_mapping
+    print(dataset_dict['class_to_label_mapping'])
+    label_to_class_mapping = {v: int(k) for k, v in json.loads(dataset_dict['class_to_label_mapping']).items()}
+    print(label_to_class_mapping)
 
-        if model_dict.name == 'Faster RCNN':
-            ml_model, num_ftrs = get_model_instance(num_classes=dataset_dict.num_classes)
-        ml_model, model_history = train_model(ml_model, model_dict, project_dict, train_loader, val_loader, optimizer, device, num_epochs)
-        
-    except Exception as error:
-        print(error)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    # params = [p for p in model.parameters() if p.requires_grad]
-    
+    # set up dataset
+    labelled_dataset = ObjDetDataset(annotation_ids, project_dict['bucket'], project_dict['prefix'], label_to_class_mapping)
+    labelled_data_loader = torch.utils.data.DataLoader(labelled_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=1, collate_fn=collate_fn)
+    train_loader, val_loader = split_train_data(labelled_data_loader, TRAIN_TEST_SPLIT)
 
-    # for i, (train_loss, precision, recall) in enumerate(model_history):
-    #     epoch = Epoch(epoch=i, train_loss=train_loss, precision=precision, recall=recall, model_id=model.id)
-    #     db.session.add(epoch)
-    # db.session.commit()
-    # print('Training complete and data saved to the database.')
-    # project.to_dict(), dataset.to_dict(), model.to_dict(), annotations.to_dict(), history.to_dict(), num_epochs, train_test_split, batch_size)
-    # annotation_ids_list = [id[0] for id in annotations]
-    # dataset = ObjDetDataset(annotation_ids_list, project.bucket, project.prefix)
-    # dataloader = get_data_loader(dataset)
-    # train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
+    # set up model, optimizer and device
+    ml_model = get_model_instance(num_classes=dataset_dict['num_classes'])
+    optimizer = torch.optim.Adam(ml_model.parameters(), lr=1e-4)
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    ml_model, training_history = train_model(self, ml_model, model_dict, project_dict, history_dict, train_loader, val_loader, optimizer, device, NUM_EPOCHS)
+
+    precision, recall = validate_epoch(ml_model, val_loader, device)
+    history_db = History.query.get_or_404(history_dict['id'])
+    history_db.precision = precision
+    history_db.recall = recall
+    db.session.add(history_db)
+    db.session.commit()
+
+    for i in range(len(training_history)):
+        epoch = Epoch(epoch=i, train_loss=training_history[i][0], precision=training_history[i][1], recall=training_history[i][2], model_id=model_dict['id'], history_id=history_dict['id'])
+        db.session.add(epoch)
+        db.session.commit()
+
+    get_predictions(ml_model, val_loader, device)
+

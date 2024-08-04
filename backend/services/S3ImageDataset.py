@@ -5,6 +5,7 @@ import boto3
 import torch
 import os
 from models import Annotation
+import torchvision.transforms as transforms
 
 s3 = boto3.client(
     's3',
@@ -54,10 +55,12 @@ class S3ImageDataset(Dataset):
     
 
 class ObjDetDataset(Dataset):
-    def __init__(self, annotation_ids, bucket, prefix):
+    def __init__(self, annotation_ids, bucket, prefix, label_to_class_mapping):
         self.annotation_ids = annotation_ids # list of annotation_ids
         self.bucket = bucket
         self.prefix = prefix
+        self.transform = transforms.ToTensor()
+        self.label_to_class_mapping = label_to_class_mapping
 
     def __len__(self):
         return len(self.annotation_ids)
@@ -69,9 +72,19 @@ class ObjDetDataset(Dataset):
     
     def __getitem__(self, idx):
         annotation_id = self.annotation_ids[idx]
-        annotation = Annotation.query.get_or_404(annotation_id).to_dict() # get annotation info from db
+        annotation = Annotation.query.get_or_404(annotation_id) # get annotation info from db
+        annotation.labels = [self.label_to_class_mapping[label] if isinstance(label, str) else label for label in annotation.labels]
         
         img_key = f'{self.prefix}/{annotation.filename}'
         image = self.load_image_from_s3(img_key)
+        image = self.transform(image) # Convert image to tensor
 
-        return image, annotation
+        # Convert all values in the annotation dictionary to tensors
+        annotation_dict = {}
+        annotation_dict["id"] = torch.as_tensor(annotation.id)
+        annotation_dict["boxes"] = torch.as_tensor(annotation.boxes)
+        annotation_dict["labels"] = torch.as_tensor(annotation.labels)
+        annotation_dict["area"] = torch.as_tensor(annotation.area)
+        annotation_dict["iscrowd"] = torch.as_tensor(annotation.iscrowd)
+
+        return image, annotation_dict

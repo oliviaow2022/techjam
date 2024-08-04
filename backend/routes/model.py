@@ -95,25 +95,26 @@ def get_all_models():
     return jsonify(model_list), 200
 
 
-@model_routes.route('<int:model_id>/download', methods=['GET'])
-def download_model(model_id):
-    model_db = Model.query.get_or_404(model_id, description="Model ID not found")
-    project_db = Project.query.get_or_404(model_db.project_id, description="Project ID not found")
+@model_routes.route('<int:history_id>/download', methods=['GET'])
+def download_model(history_id):
+    history = History.query.get_or_404(history_id)
+    model_db = Model.query.get_or_404(history.model_id)
+    project_db = Project.query.get_or_404(model_db.project_id)
 
-    if not model_db.saved:
+    if not history.model_path:
         return jsonify({'Message': 'Model file not found'}), 404 
 
     try:
         with TemporaryDirectory() as temp_dir:
 
-            file_name = os.path.basename(model_db.saved)
+            file_name = os.path.basename(history.model_path)
             print(file_name)
             local_file_path = os.path.join(temp_dir, file_name)
 
-            print(model_db.saved)
+            print(history.model_path)
             print(local_file_path)
 
-            s3.download_file(project_db.bucket, model_db.saved, local_file_path)
+            s3.download_file(project_db.bucket, history.model_path, local_file_path)
             if os.path.exists(local_file_path):
                 return send_file(local_file_path, as_attachment=True)
             else:

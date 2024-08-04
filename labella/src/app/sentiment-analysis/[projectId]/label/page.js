@@ -78,26 +78,52 @@ export default function SentimentAnalysisLabelling({ params }) {
     return <div>Loading...</div>;
   }
   const parseJsonIfNeeded = (data) => {
-    if (typeof data === 'string') {
+    if (typeof data === "string") {
       try {
         return JSON.parse(data);
       } catch (error) {
-        console.error('Failed to parse JSON string:', error);
+        console.error("Failed to parse JSON string:", error);
         return {};
       }
     }
     return data;
   };
-  const parsedClassToLabelMapping = parseJsonIfNeeded(datasetData?.dataset?.class_to_label_mapping) 
+  const parsedClassToLabelMapping = parseJsonIfNeeded(
+    datasetData?.dataset?.class_to_label_mapping
+  );
+
+  const handleRunZeroShot = async (projectId) => {
+    let apiEndpoint =
+      process.env.NEXT_PUBLIC_API_ENDPOINT +
+      `/senti/${projectId}/zero-shot`;
+
+      try {
+        const response = await axios.post(apiEndpoint);
+        if (response.status === 200) {
+          toast.success(`Job ID ${response.data.task_id} started`);
+        }
+      } catch (err) {
+        console.log(err);
+      }
+  }
+
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
         <SentimentAnalysisSideNav params={params.projectId} />
         <div className="ml-0 lg:ml-20 mt-32">
-          <p className="text-xl text-[#3FEABF] font-bold mb-8">
-            Sentiment Analysis
-          </p>
+          <div className="flex flex-row justify-between">
+            <p className="text-xl text-[#3FEABF] font-bold mb-8">
+              Sentiment Analysis
+            </p>
+            <button
+                  className="flex py-2 px-4 bg-[#FF52BF] h-fit w-fit rounded-lg justify-center items-center cursor-pointer text-white disabled:opacity-75"
+                  onClick={() => {handleRunZeroShot(params.projectId)}}
+                >
+                  Run Zero Shot
+                </button>
+          </div>
           <div className="flex flex-row gap-4">
             <div className="flex gap-4 items-center justify-center">
               <button
@@ -120,17 +146,17 @@ export default function SentimentAnalysisLabelling({ params }) {
               <div className="bg-[#3B3840] rounded-lg w-96 p-4">
                 <p className="text-white font-bold mb-2">Class</p>
                 <div className="flex flex-wrap justify-between">
-                  {Object.entries(
-                    parsedClassToLabelMapping
-                  ).map(([key, value]) => (
-                    <LabelButton
-                      key={key}
-                      classInteger={key}
-                      name={value}
-                      handleOptionChange={handleLabelAddition}
-                      bgColour="bg-[#3FEABF]"
-                    />
-                  ))}
+                  {Object.entries(parsedClassToLabelMapping).map(
+                    ([key, value]) => (
+                      <LabelButton
+                        key={key}
+                        classInteger={key}
+                        name={value}
+                        handleOptionChange={handleLabelAddition}
+                        bgColour="bg-[#3FEABF]"
+                      />
+                    )
+                  )}
                 </div>
               </div>
               <div className="bg-[#3B3840] rounded-lg w-96 p-4">

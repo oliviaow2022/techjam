@@ -1,20 +1,21 @@
 import os
 import pandas as pd
-
-from flask import Blueprint, request, jsonify, send_file, make_response, Response
-from models import db, Model, Project, Dataset, DataInstance, History
-from services.senti import run_training
-from tempfile import TemporaryDirectory
 import zipfile
+
+from flask import Blueprint, request, jsonify, send_file, make_response
+from models import db, Model, Project, Dataset, DataInstance, History
+from services.senti import run_training, run_zero_shot_labelling
+from tempfile import TemporaryDirectory
 from io import BytesIO
 from botocore.exceptions import ClientError
 from services.S3ImageDataset import s3
 
 senti_routes = Blueprint('senti', __name__)
 
+
 @senti_routes.route('<int:dataset_id>/upload', methods=['POST'])
 def upload_file(dataset_id):
-    # text_column = request.form.get("text_column")
+    text_column = request.form.get("text_column")
     file = request.files['file']
 
     if not all([file, text_column]):
@@ -43,6 +44,15 @@ def upload_file(dataset_id):
 
         
     return jsonify({"message": "File uploaded successfully"}), 200
+
+@senti_routes.route('<int:project_id>/zero-shot', methods=['POST'])
+def zero_shot(project_id):
+    project = Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project.id).first()
+
+    task = run_zero_shot_labelling.delay(dataset.to_dict())
+
+    return jsonify({"task_id": task.id}), 200
 
 
 @senti_routes.route('<int:project_id>/train', methods=['POST'])
@@ -79,17 +89,18 @@ def train_model(project_id):
     return jsonify({'task_id': task.id}), 200
 
 
-@senti_routes.route('<int:model_id>/download', methods=['GET'])
-def download_model(model_id):
-    model_db = Model.query.get_or_404(model_id, description="Model ID not found")
+@senti_routes.route('<int:history_id>/download', methods=['GET'])
+def download_model(history_id):
+    history = History.query.get_or_404(history_id)
+    model_db = Model.query.get_or_404(history.model_id, description="Model ID not found")
     project_db = Project.query.get_or_404(model_db.project_id, description="Project ID not found")
 
     print(model_db)
-    if not model_db.saved:
+    if not history.model_path:
         return jsonify({'Message': 'Model file not found'}), 404 
 
     try:
-        model_file_path = model_db.saved
+        model_file_path = history.model_path
 
         # Extract the directory path and base file name from the S3 path
         model_dir = os.path.dirname(model_file_path)
@@ -104,7 +115,7 @@ def download_model(model_id):
         # Combine the directory and new file name to form the full path
         vectorizer_file_path = os.path.join(model_dir, vectorizer_file_name)
 
-        print(model_db.saved, vectorizer_file_name)
+        print(history.model_path, vectorizer_file_name)
 
         # Create temporary directory
         with TemporaryDirectory() as temp_dir:
@@ -115,7 +126,7 @@ def download_model(model_id):
             print(local_model_file_path, local_vectorizer_file_path)
 
             # Download files from S3
-            s3.download_file(project_db.bucket, model_db.saved, local_model_file_path)
+            s3.download_file(project_db.bucket, history.model_path, local_model_file_path)
             s3.download_file(project_db.bucket, vectorizer_file_path, local_vectorizer_file_path)
 
             # Check if the files were downloaded

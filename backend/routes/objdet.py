@@ -1,13 +1,13 @@
-import os, time
-import uuid
+import os
 import zipfile
-import torch
+import io
+import csv
+
 from werkzeug.utils import secure_filename
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from models import db, Annotation, Project, Dataset, Model, History
-from services.S3ImageDataset import s3, ObjDetDataset
-from services.objdet import run_training, get_model_instance, split_train_data, get_data_loader
-import threading
+from services.S3ImageDataset import s3
+from services.objdet import run_training
 
 objdet_routes = Blueprint('objdet', __name__)
 
@@ -145,14 +145,7 @@ def label_data(annotation_id):
 
 @objdet_routes.route('<int:project_id>/train', methods=['POST'])
 def run_training_model(project_id):
-    # dataloader = get_data_loader(dataset)
-    # train_loader, val_loader = split_train_data(dataloader)
 
-    # model = get_model_instance(num_classes=dataset.num_classes)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-    # pass
     print('running training...')
 
     project = Project.query.get_or_404(project_id, description="Project ID not found")
@@ -167,79 +160,80 @@ def run_training_model(project_id):
         return jsonify({'Message': 'Missing required fields'}), 404
 
     # check if model with the same architecture already exists
-    model = Model.query.filter_by(name=model_name, project_id=project.id).first()
-    if not model:
-        model = Model(name=model_name, project_id=project_id, description=model_description)
-        db.session.add(model)
+    model_db = Model.query.filter_by(name=model_name, project_id=project.id).first()
+    if not model_db:
+        model_db = Model(name=model_name, project_id=project_id, description=model_description)
+        db.session.add(model_db)
         db.session.commit()
         
     dataset = Dataset.query.filter_by(project_id=project.id).first()
-    annotations = Annotation.query.filter_by(dataset_id=dataset.id).with_entities(Annotation.id).all()
-    annotations_dict_list = [annotation.to_dict() for annotation in annotations]
-    # dataloader = get_data_loader(dataset)
-    # train_loader, val_loader = split_train_data(dataloader, batch_size, train_test_split)
+    annotations = Annotation.query.filter_by(dataset_id=dataset.id).filter(Annotation.labels.isnot(None)).with_entities(Annotation.id).all()
+    annotation_ids = [annotation.id for annotation in annotations]
+
+    if len(annotation_ids) == 0:
+        return jsonify({'Message': 'No labelled data to train with'}), 404
+
     print(dataset.to_dict())
-    history = History(model_id=model.id)
+    history = History(model_id=model_db.id)
     db.session.add(history)
     db.session.commit()
 
-    from app import app
-    app_context = app.app_context()
+    task = run_training.delay(annotation_ids, project.to_dict(), dataset.to_dict(), model_db.to_dict(), history.to_dict(), num_epochs, batch_size, train_test_split)
 
-    training_thread = threading.Thread(target=run_training, args=(project.to_dict(), dataset.to_dict(), model.to_dict(), annotations_dict_list, history.to_dict(), num_epochs, train_test_split, batch_size))
-    training_thread.start()
+    history.task_id = task.id
+    db.session.commit()
 
-    return jsonify({'message': 'Training started'}), 200
+    return jsonify({'task_id': task.id}), 200
 
-    # model.to(device)
 
-    # since = time.time()
-    # # input from user
-    # num_epochs = 10 
+@objdet_routes.route('<int:project_id>/download', methods=['GET'])
+def download_dataset(project_id):
+    Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project_id).first()
 
-    # for epoch in range(num_epochs):
-    #     model.train()
-    #     running_loss = 0.0
+    # Query DataInstance records based on dataset_id
+    data_instances = Annotation.query.filter_by(dataset_id=dataset.id).all()
 
-    #     for images, targets in train_loader:
-    #         images = list(image.to(device) for image in images)
-    #         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-    #         optimizer.zero_grad()
-    #         loss_dict = model(images, targets)
-    #         losses = sum(loss for loss in loss_dict.values())
-    #         losses.backward()
-    #         optimizer.step()
-
-    #         running_loss += losses.item()
-
-    #     print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {running_loss / len(train_loader)}")
-
-    #     # Validation loop
-    #     model.eval()
-    #     val_loss = 0.0
-    #     with torch.no_grad():
-    #         for images, targets in val_loader:
-    #             images = list(image.to(device) for image in images)
-    #             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-    #             loss_dict = model(images, targets)
-    #             losses = sum(loss for loss in loss_dict.values())
-    #             val_loss += losses.item()
-
-    #     print(f"Validation Loss: {val_loss / len(val_loader)}")
-
-    # # Save the trained model
-    # model_save_path = os.path.join('./models', f'{project_id}_model.pth')
-    # model_saved = torch.save(model.state_dict(), model_save_path)
-
-    # time_elapsed = time.time() - since
-    # print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    # s3.upload_file(project.bucket, model_save_path)
+    if not data_instances:
+        return jsonify({"error": "No data instances found"}), 404
     
-    # db.session.add(model_saved)
-    # db.session.commit()
-    # print('model saved to', model_save_path)
+    # Create an in-memory output file
+    output = io.StringIO()
+    writer = csv.writer(output)
 
-    # return jsonify({"message": "Model trained successfully", "model_path": model_save_path}), 200
+    # Write CSV header
+    writer.writerow([
+        'ID', 
+        'Filename', 
+        'Image ID', 
+        'Boxes', 
+        'Labels', 
+        'Area', 
+        'Iscrowd', 
+        'Manually Processed', 
+        'Confidence'
+    ])
 
+    # Write CSV rows
+    for instance in data_instances:
+        writer.writerow([
+            instance.id,
+            instance.filename,
+            instance.image_id,
+            instance.boxes or '',  # Handle None or empty list
+            instance.labels or '',  # Handle None or empty list
+            instance.area or '',  # Handle None or empty list
+            instance.iscrowd or '',  # Handle None or empty list
+            instance.manually_processed,
+            instance.confidence
+        ])
+
+    output.seek(0)
+
+    # Send the CSV file as a response
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'{dataset.name}.csv'
+    )

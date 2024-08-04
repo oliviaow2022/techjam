@@ -3,6 +3,7 @@ import os
 import pickle
 import pandas as pd
 import torch.nn.functional as F
+import json
 
 from celery import shared_task
 from models import db, Model, History, DataInstance
@@ -17,6 +18,26 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+from transformers import pipeline
+
+@shared_task()
+def run_zero_shot_labelling(dataset_dict):
+    df = get_dataframe(dataset_dict['id'], return_labelled=False)
+
+    classifier = pipeline("zero-shot-classification", model="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli")
+
+    label_to_class_mapping = {v: int(k) for k, v in json.loads(dataset_dict['class_to_label_mapping']).items()}
+    results = classifier(list(df['data']), candidate_labels=list(label_to_class_mapping.keys()), multi_label=False)
+
+    for idx, result in zip(df['id'], results):
+        max_label = result['labels'][0]
+        predicted_class = label_to_class_mapping[max_label]
+        print(idx, max_label, predicted_class)
+
+        data_instance = DataInstance.query.get_or_404(idx)
+        data_instance.labels = predicted_class  
+        db.session.add(data_instance)
+        db.session.commit() 
 
 
 @shared_task()
@@ -68,23 +89,19 @@ def run_training(project_dict, model_dict, dataset_dict, TEST_SIZE):
         vectorizer_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}_vectorizer.pkl"
         s3.upload_file(local_vectorizer_path, project_dict['bucket'], vectorizer_path)
 
-        model_db = Model.query.get_or_404(model_dict['id'])
-        model_db.saved = model_path
-        db.session.add(model_db)
-        db.session.commit()
         print('model saved to', model_path)
 
-    X_test = vectorizer.transform(X_test)
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average="micro")
-    recall = recall_score(y_test, y_pred, average="micro")
-    f1 = f1_score(y_test, y_pred, average="micro")
+        X_test = vectorizer.transform(X_test)
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, average="micro")
+        recall = recall_score(y_test, y_pred, average="micro")
+        f1 = f1_score(y_test, y_pred, average="micro")
 
-    # save training results to database
-    history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_db.id)
-    db.session.add(history)
-    db.session.commit()
+        # save training results to database
+        history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_dict['id'], model_path=model_path)
+        db.session.add(history)
+        db.session.commit()
 
     # run model on unlabelled data
     df = get_dataframe(dataset_dict['id'], return_labelled=False)
