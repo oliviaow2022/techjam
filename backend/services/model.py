@@ -94,13 +94,13 @@ def validate_epoch(model, dataloader, criterion, device):
     return epoch_loss, accuracy
 
 
-def train_model(self, model, model_dict, project_dict, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, NUM_EPOCHS):
+def train_model(self, model, model_dict, project_dict, history_dict, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, NUM_EPOCHS):
 
     since = time.time()
 
     # Create a temporary directory to save training checkpoints
     with TemporaryDirectory() as tempdir:
-        best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
+        best_model_params_path = os.path.join(tempdir, 'best_model_params.pth')
         torch.save(model.state_dict(), best_model_params_path)
         best_acc = 0.0
         history = []
@@ -132,15 +132,19 @@ def train_model(self, model, model_dict, project_dict, train_dataloader, val_dat
         # Load best model weights
         model.load_state_dict(torch.load(best_model_params_path))
 
+        # Download entire model
+        local_model_path = os.path.join(tempdir, 'best_model.pt')
+        torch.save(model, local_model_path)
+
         # upload model to s3
-        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pth"
-        s3.upload_file(best_model_params_path, project_dict['bucket'], model_path)
+        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pt"
+        s3.upload_file(local_model_path, project_dict['bucket'], model_path)
         
         print(model_dict)
         # save model to db
-        model_db = Model.query.get_or_404(model_dict['id'])
-        model_db.saved = model_path
-        db.session.add(model_db)
+        history_db = History.query.get_or_404(history_dict['id'])
+        history_db.model_path = model_path
+        db.session.add(history_db)
         db.session.commit()
         print('model saved to', model_path)
 
@@ -230,7 +234,7 @@ def run_training(self, project_dict, dataset_dict, model_dict, history_dict, NUM
         optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
-        ml_model, model_history = train_model(self, ml_model, model_dict, project_dict, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
+        ml_model, model_history = train_model(self, ml_model, model_dict, project_dict, history_dict, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
 
         accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 
@@ -247,7 +251,7 @@ def run_training(self, project_dict, dataset_dict, model_dict, history_dict, NUM
             epoch = Epoch(epoch=i, train_acc=model_history[i][0], val_acc=model_history[i][1], train_loss=model_history[i][2], val_loss=model_history[i][3], model_id=model_dict['id'], history_id=history_dict['id'])
             print('EPOCH', epoch)
             db.session.add(epoch)
-        db.session.commit()
+            db.session.commit()
 
         print(history_db.to_dict())
 

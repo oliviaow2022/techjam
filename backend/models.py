@@ -140,7 +140,8 @@ class Annotation(db.Model):
             "labels": self.labels,
             "area": self.area,
             "iscrowd": self.iscrowd,
-            "dataset_id": self.dataset_id
+            "dataset_id": self.dataset_id,
+            "confidence": self.confidence
         }
 
     def __repr__(self):
@@ -152,14 +153,12 @@ class Model(db.Model):
     name = db.Column(db.String(256), nullable=False)
     description = db.Column(db.String(256), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-    saved = db.Column(db.String(128), nullable=True)
 
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
-            "project_id": self.project_id,
-            "saved": self.saved
+            "project_id": self.project_id
         }
 
     def __repr__(self):
@@ -176,6 +175,7 @@ class History(db.Model):
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     task_id = db.Column(db.String(256), nullable=True)
+    model_path = db.Column(db.String(128), nullable=True)
 
     def to_dict(self):
         return {
@@ -186,17 +186,20 @@ class History(db.Model):
             "f1": self.f1,
             "auc": self.auc,
             "created_at": self.created_at,
-            "task_id": self.task_id
+            "task_id": self.task_id,
+            "model_path": self.model_path
         }
     
     
 class Epoch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     epoch = db.Column(db.Integer, nullable=False)
-    train_acc = db.Column(db.Float, nullable=False)
-    val_acc = db.Column(db.Float, nullable=False)
-    train_loss = db.Column(db.Float, nullable=False)
-    val_loss = db.Column(db.Float, nullable=False)
+    train_acc = db.Column(db.Float, nullable=True)
+    val_acc = db.Column(db.Float, nullable=True)
+    train_loss = db.Column(db.Float, nullable=True)
+    val_loss = db.Column(db.Float, nullable=True)
+    precision = db.Column(db.Float, nullable=True)
+    recall = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
     history_id = db.Column(db.Integer, db.ForeignKey('history.id'), nullable=False)
 
@@ -208,6 +211,8 @@ class Epoch(db.Model):
             "val_acc": self.val_acc,
             "train_loss": self.train_loss,
             "val_loss": self.val_loss,
+            "precision": self.precision,
+            "recall": self.recall,
             "model_id": self.model_id,
             "history_id": self.history_id
         }

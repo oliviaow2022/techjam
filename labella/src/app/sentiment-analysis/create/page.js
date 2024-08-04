@@ -92,12 +92,10 @@ export default function SentimentAnalysis() {
 
         console.log(uploadResponse);
 
-        if (createResponse.status === 201 && uploadEndpoint.status === 200) {
-          toast.success("Success");
-          router.push(
-            `/sentiment-analysis/${createResponse.data.project.id}/label`
-          );
-        }
+        toast.success("Success");
+        router.push(
+          `/sentiment-analysis/${createResponse.data.project.id}/label`
+        );
       } catch (error) {
         console.log(error);
       }

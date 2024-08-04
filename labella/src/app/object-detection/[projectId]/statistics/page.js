@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import axios from "axios";
 
-import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
+import ObjectDetectionSideNav from "@/components/nav/ObjectDetectionSideNav";
 import EpochChart from "@/components/EpochChart";
 import Navbar from "@/components/nav/NavBar";
 import TaskMonitor from "@/components/TaskMonitor";
 import Arrow from "@/components/Arrow";
 
-export default function ImageClassificationStatistics({ params }) {
+export default function ObjectDetectionStatistics({ params }) {
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/history/${params.projectId}/info`;
 
@@ -64,15 +64,18 @@ export default function ImageClassificationStatistics({ params }) {
   const handleDownloadDataset = async (projectId) => {
     try {
       // Make GET request to backend endpoint
-      const response = await axios.get(process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${projectId}/download`, {
-        responseType: "blob", // Important to handle file download
-      });
+      const response = await axios.get(
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/objdet/${projectId}/download`,
+        {
+          responseType: "blob", // Important to handle file download
+        }
+      );
 
       // Create a URL for the downloaded file
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "data_instances.csv"); // Specify file name
+      link.setAttribute("download", "annotations.csv"); // Specify file name
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -89,11 +92,11 @@ export default function ImageClassificationStatistics({ params }) {
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">
       <Navbar />
       <div className="flex flex-row">
-        <ImageClassificationSideNav params={params.projectId} />
-        <div className="ml-0 lg:ml-20 mt-32">
+        <ObjectDetectionSideNav params={params.projectId} />
+        <div className="ml-0 lg:ml-20 mt-32 w-full">
           <div className="flex flex-row justify-between">
-            <p className="text-xl text-[#FF52BF] font-bold mb-8">
-              Image Classification
+            <p className="text-xl text-[#D887F5] font-bold mb-8">
+              Object Detection
             </p>
             {historyData && (
               <div className="flex flex-row items-center">
@@ -149,10 +152,6 @@ export default function ImageClassificationStatistics({ params }) {
                 {new Date(historyData.history?.created_at).toLocaleString()})
               </p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-[#3B3840] rounded-lg p-4">
-                  <p className="text-white font-bold mb-2">Accuracy</p>
-                  <p>{historyData.history?.accuracy}</p>
-                </div>
                 <div className="bg-[#3B3840] rounded-lg  p-4">
                   <p className="text-white font-bold mb-2">Precision</p>
                   <p>{historyData.history?.precision}</p>
@@ -161,10 +160,6 @@ export default function ImageClassificationStatistics({ params }) {
                   <p className="text-white font-bold mb-2">Recall</p>
                   <p>{historyData.history?.recall}</p>
                 </div>
-                <div className="bg-[#3B3840] rounded-lg p-4">
-                  <p className="text-white font-bold mb-2">F1 Score</p>
-                  <p>{historyData.history?.f1}</p>
-                </div>
               </div>
               {historyData.epochs && <EpochChart epochs={historyData.epochs} />}
               <table className="table-auto w-full border-collapse border border-slate-500 my-5">
@@ -172,16 +167,13 @@ export default function ImageClassificationStatistics({ params }) {
                   <tr>
                     <th className="px-4 py-2 border border-slate-600">Epoch</th>
                     <th className="px-4 py-2 border border-slate-600">
-                      Train Accuracy
-                    </th>
-                    <th className="px-4 py-2 border border-slate-600">
                       Train Loss
                     </th>
                     <th className="px-4 py-2 border border-slate-600">
-                      Validation Accuracy
+                     Precision
                     </th>
                     <th className="px-4 py-2 border border-slate-600">
-                      Validation Loss
+                      Recall
                     </th>
                   </tr>
                 </thead>
@@ -192,16 +184,13 @@ export default function ImageClassificationStatistics({ params }) {
                         {epochIndex + 1}
                       </td>
                       <td className="border px-4 py-2 border-slate-700">
-                        {epoch.train_acc}
-                      </td>
-                      <td className="border px-4 py-2 border-slate-700">
                         {epoch.train_loss}
                       </td>
                       <td className="border px-4 py-2 border-slate-700">
-                        {epoch.val_acc}
+                        {epoch.precision}
                       </td>
                       <td className="border px-4 py-2 border-slate-700">
-                        {epoch.val_loss}
+                        {epoch.recall}
                       </td>
                     </tr>
                   ))}

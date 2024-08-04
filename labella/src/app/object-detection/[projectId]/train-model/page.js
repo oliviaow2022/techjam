@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 import ObjectDetectionSideNav from "@/components/nav/ObjectDetectionSideNav";
 import Navbar from "@/components/nav/NavBar";
 import InputBox from "@/components/forms/InputBox";
+import axios from "axios"
+
 
 const models = [
   {
@@ -15,6 +19,8 @@ const models = [
 ];
 
 export default function ObjectDetectionTrainModel({ params }) {
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     batch_size: 128,
     num_epochs: 3,
@@ -33,7 +39,50 @@ export default function ObjectDetectionTrainModel({ params }) {
     });
   };
 
-  const handleSubmit = () => {};
+  const validate = () => {
+    let errors = {};
+
+    if (!formData.batch_size) {
+      errors.batch_size = "Batch size is required";
+    }
+    if (!formData.num_epochs) {
+      errors.num_epochs = "Number of epochs is required";
+    }
+    if (!formData.train_test_split) {
+      errors.train_test_split = "Train test split ratio is required";
+    }
+    if (!formData.model_name) {
+      errors.model_name = "Model is required";
+    }
+
+    return errors;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    let validationErrors = validate();
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      try {
+        let apiEndpoint =
+          process.env.NEXT_PUBLIC_API_ENDPOINT +
+          `/objdet/${params.projectId}/train`;
+        console.log(formData);
+        const response = await axios.post(apiEndpoint, formData);
+
+        console.log(response);
+
+        if (response.status === 200) {
+          toast.success(`Job ID ${response.data.task_id} created`);
+          router.push(`/object-detection/${params.projectId}/statistics`)
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    }
+  };
 
   return (
     <main className="flex flex-col min-h-screen px-24 pb-24 bg-[#19151E] z-20">

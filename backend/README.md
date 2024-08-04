@@ -97,6 +97,7 @@ celery -A app.celery_app worker --loglevel=debug --pool=solo
 start a celery worker process on MACOS
 ```
 celery -A app.celery_app worker --loglevel=debug --pool threads
+celery -A app.celery_app worker --loglevel=info --pool threads
 ```
 
 ## Quick Celery Crash Course
