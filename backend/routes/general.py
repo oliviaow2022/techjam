@@ -46,6 +46,8 @@ general_routes = Blueprint('general', __name__)
     ]
 })
 def create_project_dataset():
+    print(request.json)
+
     project_name = request.json.get('project_name')
     project_type = request.json.get('project_type')
     dataset_name = request.json.get('dataset_name')

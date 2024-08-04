@@ -247,7 +247,7 @@ def run_training(self, project_dict, dataset_dict, model_dict, history_dict, NUM
             epoch = Epoch(epoch=i, train_acc=model_history[i][0], val_acc=model_history[i][1], train_loss=model_history[i][2], val_loss=model_history[i][3], model_id=model_dict['id'], history_id=history_dict['id'])
             print('EPOCH', epoch)
             db.session.add(epoch)
-        db.session.commit()
+            db.session.commit()
 
         print(history_db.to_dict())
 

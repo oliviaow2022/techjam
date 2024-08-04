@@ -140,7 +140,8 @@ class Annotation(db.Model):
             "labels": self.labels,
             "area": self.area,
             "iscrowd": self.iscrowd,
-            "dataset_id": self.dataset_id
+            "dataset_id": self.dataset_id,
+            "confidence": self.confidence
         }
 
     def __repr__(self):
@@ -193,10 +194,12 @@ class History(db.Model):
 class Epoch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     epoch = db.Column(db.Integer, nullable=False)
-    train_acc = db.Column(db.Float, nullable=False)
-    val_acc = db.Column(db.Float, nullable=False)
-    train_loss = db.Column(db.Float, nullable=False)
-    val_loss = db.Column(db.Float, nullable=False)
+    train_acc = db.Column(db.Float, nullable=True)
+    val_acc = db.Column(db.Float, nullable=True)
+    train_loss = db.Column(db.Float, nullable=True)
+    val_loss = db.Column(db.Float, nullable=True)
+    precision = db.Column(db.Float, nullable=True)
+    recall = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
     history_id = db.Column(db.Integer, db.ForeignKey('history.id'), nullable=False)
 
@@ -208,6 +211,8 @@ class Epoch(db.Model):
             "val_acc": self.val_acc,
             "train_loss": self.train_loss,
             "val_loss": self.val_loss,
+            "precision": self.precision,
+            "recall": self.recall,
             "model_id": self.model_id,
             "history_id": self.history_id
         }
