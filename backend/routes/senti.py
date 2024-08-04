@@ -45,7 +45,7 @@ def upload_file(dataset_id):
         
     return jsonify({"message": "File uploaded successfully"}), 200
 
-@senti_routes.route('<int:project_id>/zero-shot', methods=['GET'])
+@senti_routes.route('<int:project_id>/zero-shot', methods=['POST'])
 def zero_shot(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()

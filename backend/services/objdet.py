@@ -227,4 +227,3 @@ def run_training(self, annotation_ids, project_dict, dataset_dict, model_dict, h
 
     get_predictions(ml_model, val_loader, device)
 
-    

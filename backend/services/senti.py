@@ -91,17 +91,17 @@ def run_training(project_dict, model_dict, dataset_dict, TEST_SIZE):
 
         print('model saved to', model_path)
 
-    X_test = vectorizer.transform(X_test)
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average="micro")
-    recall = recall_score(y_test, y_pred, average="micro")
-    f1 = f1_score(y_test, y_pred, average="micro")
+        X_test = vectorizer.transform(X_test)
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, average="micro")
+        recall = recall_score(y_test, y_pred, average="micro")
+        f1 = f1_score(y_test, y_pred, average="micro")
 
-    # save training results to database
-    history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_dict['id'], model_path=model_path)
-    db.session.add(history)
-    db.session.commit()
+        # save training results to database
+        history = History(accuracy=accuracy, precision=precision, recall=recall, f1=f1, model_id=model_dict['id'], model_path=model_path)
+        db.session.add(history)
+        db.session.commit()
 
     # run model on unlabelled data
     df = get_dataframe(dataset_dict['id'], return_labelled=False)
