@@ -49,7 +49,7 @@ class DistilBERTClassifier(nn.Module):
         logits = self.classifier(pooled_output)
         return logits
 
-model = torch.load('/Users/sriyan/Documents/techjam/final-sentiment-analysis/distilBERT/models/full_model.pt')
+model = torch.load('/Users/sriyan/Documents/techjam/final-sentiment-analysis/distilBERT/distilbert-model/full_model.pt')
 tokeniser = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
@@ -57,34 +57,40 @@ model.to(device)
 
 def predict_sentiment(model, tokenizer, text):
     model.eval()
+    if not isinstance(text, str):
+        text = str(text)  # Convert to string if it's not already
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
     device = next(model.parameters()).device
     inputs = {k: v.to(device) for k, v in inputs.items()}
     with torch.no_grad():
         outputs = model(**inputs)
-    probabilities = F.softmax(outputs, dim=-1)
+    probabilities = F.softmax(outputs, dim=-1)  # Use outputs.logits here
     predicted_class = torch.argmax(probabilities, dim=-1)
     sentiment_labels = ["Negative", "Neutral", "Positive"]
     predicted_sentiment = sentiment_labels[predicted_class.item()]
-
     return predicted_sentiment, probabilities.squeeze().tolist()
 
 def ground_predict(df, text_column, model, tokeniser):
     sentiments = []
     probabilities_list = []
     for text in df[text_column]:
+        if not isinstance(text, str):
+            text = str(text)  # Convert to string if it's not already
         sentiment, probabilities = predict_sentiment(model, tokeniser, text)
-        sentiment.append(sentiment)
+        sentiments.append(sentiment)
         probabilities_list.append(probabilities)
     df['predicted_sentiment'] = sentiments
     df['probabilities'] = probabilities_list
-    return df 
+    return df
+
 
 
 def load_dataset(file_path, text_column):
-    df = ground_predict(pd.read_csv(file_path), text_column, model, tokeniser)
+    df = pd.read_csv(file_path)
+    df[text_column] = df[text_column].astype(str)  # Convert text column to strings
+    df = ground_predict(df, text_column, model, tokeniser)
     df[text_column] = df[text_column].fillna('')
-    df = df.dropna(subset=['predicted_label'])
+    df = df.dropna(subset=['predicted_sentiment'])
     return df
 
 def convert_labels_to_integers(labels):
@@ -180,7 +186,7 @@ def main():
     
     df = load_dataset(file_path, text_column)
 
-    X_train, X_test, y_train, y_test = train_test_split(df[text_column], df['predicted_label'], test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(df[text_column], df['predicted_sentiment'], test_size=0.2, random_state=42)
 
     model_name = input("Enter the model you would like to use (svm, naive_bayes, random_forest, xgboost): ").lower()
     model, vectorizer = active_learning_loop(model_name, X_train, y_train, X_test, y_test, cycles=3)
