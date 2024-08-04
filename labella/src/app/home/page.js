@@ -1,15 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux"
+
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/nav/NavBar";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import axios from "axios";
 
 export default function Home() {
-  const userId = localStorage.getItem("user_id");
   const router = useRouter();
+  const userId = useSelector((state) => state.auth.userId);
+  console.log("UserID:",userId);
 
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/user/${userId}/projects`;
@@ -30,10 +33,12 @@ export default function Home() {
   });
 
   const redirect = (project) => {
-    if (project.type === "Single Label Classification") {
+    if (project.type === "Single Label Classification" || project.type === "Multilabel Classification") {
       router.push(`/image-classification/${project.id}/label`);
-    } else {
+    } else if (project.type === "sentiment-analysis"){
       router.push(`/sentiment-analysis/${project.id}/label`);
+    } else{
+      router.push(`/object-detection/${project.id}/label`);
     }
   };
 
@@ -51,17 +56,20 @@ export default function Home() {
                   onClick={() => redirect(project)}
                 >
                   <p>{project.name}</p>
-                  {project.type === "Single Label Classification" ? (
+                  {(project.type === "Single Label Classification" || project.type === "Multilabel Classification") ? (
                     <div className="flex flex-row items-center">
                       <div className="w-3 h-3 rounded-lg bg-[#FF52BF] mr-2" />
                       Image Classification
                     </div>
-                  ) : (
+                  ) : (project.type === "sentiment-analysis") ? (
                     <div className="flex flex-row items-center">
                       <div className="w-3 h-3 rounded-lg bg-[#3FEABF] mr-2" />
                       Sentiment Analysis
                     </div>
-                  )}
+                  ) : (<div className="flex flex-row items-center">
+                      <div className="w-3 h-3 rounded-lg bg-[#D887F5] mr-2" />
+                      Object Detection
+                    </div>)}
                 </div>
               ))}
             </div>
@@ -93,7 +101,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/object-detection">
+          <Link href="/object-detection/create">
             <div className="bg-[#D887F5] h-56 w-64 rounded-xl text-black flex items-center justify-center flex-col cursor-pointer hover:opacity-90 active:opacity-100">
               <Image
                 src="/object detection.png"

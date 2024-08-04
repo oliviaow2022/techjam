@@ -1,23 +1,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation'
 
-export default function SentimentAnalysisSideNav({ params }) {
+export default function ObjectDetectionSideNav({ params }) {
   const currentPath = usePathname();
   const menuOptions = [
     {
       id: 0,
       name: "Label Data",
-      link: `/sentiment-analysis/${params}/label`,
+      link: `/object-detection/${params}/label`,
     },
     {
       id: 1,
       name: "Train Model",
-      link: `/sentiment-analysis/${params}/train-model`,
+      link: `/object-detection/${params}/train-model`,
     },
     {
       id: 2,
       name: "Model Performance",
-      link: `/sentiment-analysis/${params}/statistics`,
+      link: `/object-detection/${params}/statistics`,
     }
   ];
   return (
@@ -26,7 +26,7 @@ export default function SentimentAnalysisSideNav({ params }) {
         {menuOptions.map((option, index) => (
           <p
             key={index}
-            className={`hover:cursor-pointer ${currentPath === option.link ? 'text-[#3FEABF]' : 'text-white'}`}
+            className={`hover:cursor-pointer ${currentPath === option.link ? 'text-[#D887F5]' : 'text-white'}`}
           >
             <Link href={option.link}>{option.name}</Link>
           </p>

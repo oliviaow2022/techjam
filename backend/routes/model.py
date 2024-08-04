@@ -1,47 +1,18 @@
+import os
+import threading
+
 from flask import Blueprint, request, jsonify, send_file
-from models import db, Model, Project, Dataset
-from services.model import run_training, run_labelling_with_model
+from models import db, Model, Project, Dataset, History
+from services.model import run_training, run_labelling_using_model
 from flasgger import swag_from
 import threading
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 from tempfile import TemporaryDirectory
 from botocore.exceptions import ClientError
-import os
+
 
 model_routes = Blueprint('model', __name__)
 
-@model_routes.route('/create', methods=['POST'])
-@swag_from({
-    'tags': ['Model'],
-    'description': 'model name must be in this list [ResNet-18, DenseNet-121, AlexNet, ConvNext Base]!!',
-    'parameters': [
-        {
-            'name': 'body',
-            'in': 'body',
-            'required': True,
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'name': {'type': 'string'},
-                    'project_id': {'type': 'integer'}
-                },
-                'required': ['name', 'project_id']
-            }
-        }
-    ]
-})
-def create_model():
-    name = request.json.get('name')
-    project_id = request.json.get('project_id')
-
-    if not (name or project_id):
-        return jsonify({"error": "Bad Request", "message": "Name and user_id are required"}), 400
-
-    model = Model(name=name, project_id=project_id)
-    db.session.add(model)
-    db.session.commit()
-
-    return jsonify(model.to_dict()), 201
 
 @model_routes.route('/<int:project_id>/train', methods=['POST'])
 @swag_from({
@@ -104,51 +75,16 @@ def new_training_job(project_id):
 
     dataset = Dataset.query.filter_by(project_id=project.id).first()
 
-    print(project)
-    print(dataset)
-    print(model)
+    history = History(model_id=model.id)
+    db.session.add(history)
+    db.session.commit()
 
-    from app import app
-    app_context = app.app_context()
+    task = run_training.delay(project.to_dict(), dataset.to_dict(), model.to_dict(), history.to_dict(), num_epochs, train_test_split, batch_size)
 
-    training_thread = threading.Thread(target=run_training, args=(app_context, project, dataset, model, num_epochs, train_test_split, batch_size))
-    training_thread.start()
+    history.task_id = task.id
+    db.session.commit()
 
-    return jsonify({'message': 'Training started'}), 200
-
-
-@model_routes.route('/<int:id>/label', methods=['POST'])
-@swag_from({
-    'tags': ['Model'],
-    'parameters': [
-        {
-            'name': 'id',
-            'in': 'path',
-            'type': 'integer',
-            'required': True,
-            'description': 'The ID of the model'
-        }
-    ],
-})
-def run_model(id):
-    print('running model...')
-
-    model = Model.query.get_or_404(id, description="Model ID not found")
-    dataset_details = Dataset.query.get_or_404(model.project_id, description="Dataset not found")
-    project = Project.query.get_or_404(model.project_id, description="Project ID not found")
-    dataset = Dataset.query.filter_by(project_id=project.id).first()
-
-    # check that model has been trained
-    if not model.saved:
-        return jsonify({'Saved model does not exist'}), 404
-
-    from app import app
-    app_context = app.app_context()
-
-    training_thread = threading.Thread(target=run_labelling_with_model, args=(app_context, dataset_details, dataset, project))
-    training_thread.start()
-
-    return jsonify({'message': 'Job started'}), 200
+    return jsonify({'task_id': task.id}), 200
 
 
 # for debugging only

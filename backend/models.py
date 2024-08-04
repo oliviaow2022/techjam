@@ -97,6 +97,56 @@ class DataInstance(db.Model):
     def __repr__(self):
         return f'<DataInstance {self.data}>'
     
+
+class Annotation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String, nullable=False)
+    image_id = db.Column(db.Integer, nullable=True)
+    boxes = db.Column(db.JSON, nullable=True)
+    labels = db.Column(db.JSON, nullable=True)
+    area = db.Column(db.JSON, nullable=True)
+    iscrowd = db.Column(db.JSON, nullable=True)
+    manually_processed = db.Column(db.Boolean, default=False)
+    dataset_id = db.Column(db.Integer, db.ForeignKey('dataset.id'), nullable=False)
+    confidence = db.Column(db.Float, default=0.0, nullable=False)
+
+    def process_bbox(self):
+        bboxes = []
+        if self.boxes and self.labels:
+            for box, label in zip(self.boxes, self.labels):
+                bbox = {
+                    'x1': box[0],
+                    'y1': box[1],
+                    'x2': box[2],
+                    'y2': box[3],
+                    'label': label
+                }
+                bboxes.append(bbox)
+
+        return {
+            "id": self.id,
+            "filename": self.filename,
+            "image_id": self.image_id,
+            "bboxes": bboxes,
+            "dataset_id": self.dataset_id
+        }
+
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "filename": self.filename,
+            "image_id": self.image_id,
+            "boxes": self.boxes,
+            "labels": self.labels,
+            "area": self.area,
+            "iscrowd": self.iscrowd,
+            "dataset_id": self.dataset_id
+        }
+
+    def __repr__(self):
+        return f'<Annotation id={self.id}, image_id={self.image_id}, boxes={self.boxes}, labels={self.labels}, area={self.area}, iscrowd={self.iscrowd}>'
+    
     
 class Model(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -119,13 +169,14 @@ class Model(db.Model):
 
 class History(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    accuracy = db.Column(db.Float, nullable=False)
-    precision = db.Column(db.Float, nullable=False)
-    recall = db.Column(db.Float, nullable=False)
-    f1 = db.Column(db.Float, nullable=False)
+    accuracy = db.Column(db.Float, nullable=True)
+    precision = db.Column(db.Float, nullable=True)
+    recall = db.Column(db.Float, nullable=True)
+    f1 = db.Column(db.Float, nullable=True)
     auc = db.Column(db.Float, nullable=True)
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    task_id = db.Column(db.String(256), nullable=True)
 
     def to_dict(self):
         return {
@@ -135,7 +186,8 @@ class History(db.Model):
             "recall": self.recall,
             "f1": self.f1,
             "auc": self.auc,
-            "created_at": self.created_at
+            "created_at": self.created_at,
+            "task_id": self.task_id
         }
     
     

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { useSelector } from "react-redux";
+import { useSelector } from "react-redux"
 
 import Navbar from "@/components/nav/NavBar";
 import FileInput from "@/components/forms/FileInput";
@@ -11,23 +11,24 @@ import CategoryInput from "@/components/forms/CategoryInput";
 import InputBox from "@/components/forms/InputBox";
 import axios from "axios";
 
-export default function SentimentAnalysis() {
+export default function CreateObjectDetectionProject() {
   const router = useRouter();
   const jwtToken = useSelector((state) => state.auth.jwtToken);
-  console.log(jwtToken);
+  console.log(jwtToken)
 
   const [formData, setFormData] = useState({
-    projectName: "test-senti",
-    datasetName: "test-senti",
-    textColumn: "Text",
+    projectName: "test-objdet",
+    datasetName: "test-objdet",
   });
 
   const [errors, setErrors] = useState({});
-  const [textFile, setTextFile] = useState(null);
+  const [zipFile, setTextFile] = useState(null);
   const [categoryList, setCategoryList] = useState([
-    "positive",
-    "negative",
-    "neutral",
+    "Coverall",
+    "Face_Shield",
+    "Gloves",
+    "Goggles",
+    "Mask"
   ]);
 
   const handleFileChange = (e) => {
@@ -57,16 +58,13 @@ export default function SentimentAnalysis() {
           project_name: formData.projectName,
           num_classes: categoryList.length,
           dataset_name: formData.datasetName,
-          project_type: "sentiment-analysis",
+          project_type: "object-detection",
           class_to_label_mapping: categoryList.reduce((acc, item, index) => {
             acc[index] = item;
             return acc;
           }, {}),
         };
         console.log(payload);
-
-        // const jwtToken = localStorage.getItem("jwt");
-        console.log("Token from slice:", jwtToken);
 
         const createResponse = await axios.post(createEndpoint, payload, {
           headers: {
@@ -79,10 +77,9 @@ export default function SentimentAnalysis() {
 
         let uploadEndpoint =
           process.env.NEXT_PUBLIC_API_ENDPOINT +
-          `/senti/${createResponse.data.dataset.id}/upload`;
+          `/objdet/${createResponse.data.dataset.id}/upload`;
         const fileFormData = new FormData();
-        fileFormData.append("file", textFile);
-        fileFormData.append("text_column", formData.textColumn);
+        fileFormData.append("file", zipFile);
 
         const uploadResponse = await axios.post(uploadEndpoint, fileFormData, {
           headers: {
@@ -92,10 +89,10 @@ export default function SentimentAnalysis() {
 
         console.log(uploadResponse);
 
-        if (createResponse.status === 201 && uploadEndpoint.status === 200) {
-          toast.success("Success");
+        if (createResponse.status === 201 && uploadResponse.status === 201) {
+          toast.success("Job Created");
           router.push(
-            `/sentiment-analysis/${createResponse.data.project.id}/label`
+            `/object-detection/${createResponse.data.project.id}/label`
           );
         }
       } catch (error) {
@@ -110,8 +107,8 @@ export default function SentimentAnalysis() {
     if (!categoryList) {
       errors.categoryList = "Missing sentiment categories";
     }
-    if (!textFile) {
-      errors.textFile = "Please select a file to upload.";
+    if (!zipFile) {
+      errors.zipFile = "Please select a file to upload.";
     }
     if (!formData.projectName) {
       errors.projectName = "Project name is required";
@@ -124,8 +121,8 @@ export default function SentimentAnalysis() {
       <Navbar />
       <div className="flex flex-row">
         <form className="ml-0 lg:ml-20 mt-32" onSubmit={handleSubmit}>
-          <p className="text-xl text-[#3FEABF] font-bold mb-8">
-            Sentiment Analysis
+          <p className="text-xl text-[#D887F5] font-bold mb-8">
+            Object Detection
           </p>
           <div className="flex flex-col gap-y-5">
             <InputBox
@@ -137,10 +134,10 @@ export default function SentimentAnalysis() {
             />
 
             <FileInput
-              label="Upload Dataset (CSV/XLSX only)"
+              label="Upload Dataset (.ZIP only)"
               handleFileChange={handleFileChange}
-              error={errors.textFile}
-              fileTypes=".csv, .txt"
+              error={errors.zipFile}
+              fileTypes=".zip"
             />
             <InputBox
               label="Dataset Name"
@@ -150,18 +147,11 @@ export default function SentimentAnalysis() {
               error={errors.datasetName}
             />
             <CategoryInput
-              label="Sentiment Categories"
+              label="Object Categories"
               categoryList={categoryList}
               setCategoryList={setCategoryList}
               error={errors.categories}
-              color="bg-[#3FEABF]"
-            />
-            <InputBox
-              label="Text Column in Dataframe"
-              name="textColumn"
-              value={formData.textColumn}
-              onChange={handleChange}
-              error={errors.textColumn}
+              color="bg-[#D887F5]"
             />
 
             <button

@@ -9,11 +9,11 @@ import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav"
 import LabelButton from "@/components/LabelButton";
 import axios from "axios";
 
-export default function ManualLabelling({ params }) {
+export default function SentimentAnalysisLabelling({ params }) {
   const datasetApiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}`;
   const batchApiEndpoint =
-    process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/query`;
+    process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}/batch`;
 
   const [loading, setLoading] = useState(true);
   const [datasetData, setDatasetData] = useState({});
@@ -24,15 +24,19 @@ export default function ManualLabelling({ params }) {
   const handleLabelAddition = async (classInteger) => {
     let apiEndpoint =
       process.env.NEXT_PUBLIC_API_ENDPOINT +
-      `/senti/${batchData[currentIndex].id}/label`;
+      `/instance/${batchData[currentIndex].id}/set_label`;
 
     try {
       const response = await axios.post(apiEndpoint, {
-        label: classInteger,
+        labels: classInteger,
       });
       if (response.status === 200) {
         setCurrentIndex((currentIndex) => (currentIndex += 1));
         toast.success("Label updated");
+        const updatedImages = images.map((img, idx) =>
+          idx === currentIndex ? { ...img, labels: classInteger } : img
+        );
+        setImages(updatedImages);
       }
     } catch (err) {
       console.log(err);
@@ -101,7 +105,7 @@ export default function ManualLabelling({ params }) {
               >
                 <Arrow direction="left" />
               </button>
-              <div className="w-96 h-64 rounded-lg border-2 border-white p-4">
+              <div className="w-96 h-64 rounded-lg border-2 border-white p-4 overflow-y-scroll">
                 <p className="text-white font-bold mb-2">Data</p>
                 {batchData[currentIndex]?.data}
               </div>
@@ -112,20 +116,26 @@ export default function ManualLabelling({ params }) {
               </button>
             </div>
 
-            <div className="bg-[#3B3840] rounded-lg w-96 p-4">
-              <p className="text-white font-bold mb-2">Class</p>
-              <div className="flex flex-wrap justify-between">
-                {Object.entries(
-                  parsedClassToLabelMapping
-                ).map(([key, value]) => (
-                  <LabelButton
-                    key={key}
-                    classInteger={key}
-                    name={value}
-                    handleOptionChange={handleLabelAddition}
-                    bgColour="bg-[#3FEABF]"
-                  />
-                ))}
+            <div className="flex flex-col gap-y-4">
+              <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                <p className="text-white font-bold mb-2">Class</p>
+                <div className="flex flex-wrap justify-between">
+                  {Object.entries(
+                    parsedClassToLabelMapping
+                  ).map(([key, value]) => (
+                    <LabelButton
+                      key={key}
+                      classInteger={key}
+                      name={value}
+                      handleOptionChange={handleLabelAddition}
+                      bgColour="bg-[#3FEABF]"
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="bg-[#3B3840] rounded-lg w-96 p-4">
+                <p className="text-white font-bold mb-2">Entropy</p>
+                <p>{batchData[currentIndex]?.entropy}</p>
               </div>
             </div>
           </div>

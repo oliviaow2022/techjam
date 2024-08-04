@@ -1,6 +1,6 @@
 import torchvision
 import uuid
-from S3ImageDataset import s3
+from services.S3ImageDataset import s3
 import os
 from models import db, DataInstance
 from services.model import data_transforms
