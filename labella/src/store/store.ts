@@ -6,8 +6,7 @@ import storageSession from 'redux-persist/lib/storage/session'
 // configure which key we want to persist
 const authPersistConfig = {
   key: "auth",
-  storage: storageSession,
-  whitelist: ["authState"],
+  storage: storageSession
 };
 
 const rootReducer = combineReducers({
