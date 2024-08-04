@@ -36,11 +36,11 @@ export default function ImageClassificationStatistics({ params }) {
     fetchData();
   }, [apiEndpoint, historyIndex]);
 
-  const handleDownloadModel = async (modelId) => {
+  const handleDownloadModel = async (historyId) => {
     try {
       toast.success("Downloading file");
       let response = await axios.get(
-        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${modelId}/download`,
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${historyId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
         }
@@ -51,7 +51,7 @@ export default function ImageClassificationStatistics({ params }) {
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `model.pth`); // Set the file name here
+        link.setAttribute("download", `model.pt`); // Set the file name here
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -130,14 +130,16 @@ export default function ImageClassificationStatistics({ params }) {
               />
               <div className="flex flex-row gap-2 mb-8">
                 <button
-                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
-                  onClick={() => handleDownloadModel(historyData.model?.id)}
+                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white disabled:opacity-75"
+                  onClick={() => handleDownloadModel(historyData.history?.id)}
+                  disabled={!historyData?.history?.model_path}
                 >
                   Download Model
                 </button>
                 <button
-                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white"
+                  className="flex py-2 px-4 bg-[#FF52BF] w-fit rounded-lg justify-center items-center cursor-pointer text-white disabled:opacity-75"
                   onClick={() => handleDownloadDataset(params.projectId)}
+                  disabled={!historyData?.history?.model_path}
                 >
                   Download Dataset
                 </button>

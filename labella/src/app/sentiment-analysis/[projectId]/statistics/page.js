@@ -36,11 +36,11 @@ export default function SentimentAnalysisStatistics({ params }) {
     fetchData();
   }, [apiEndpoint, historyIndex]);
 
-  const handleDownloadModel = async (modelId) => {
+  const handleDownloadModel = async (historyId) => {
     try {
       toast.success("Downloading file");
       let response = await axios.get(
-        process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${modelId}/download`,
+        process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${historyId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
         }
@@ -93,7 +93,7 @@ export default function SentimentAnalysisStatistics({ params }) {
         <SentimentAnalysisSideNav params={params.projectId} />
         <div className="ml-0 lg:ml-20 mt-32 w-full">
           <div className="flex flex-row justify-between">
-            <p className="text-xl text-[#FF52BF] font-bold mb-8">
+            <p className="text-xl text-[#3FEABF] font-bold mb-8">
               Sentiment Analysis
             </p>
             {historyData && (

@@ -116,7 +116,7 @@ def validate_epoch(model, val_loader, device, iou_threshold=0.5):
     return precision, recall
 
 
-def train_model(self, model, model_dict, project_dict, train_loader, val_loader, optimizer, device, num_epochs=1):
+def train_model(self, model, model_dict, project_dict, history_dict, train_loader, val_loader, optimizer, device, num_epochs=1):
 
     since = time.time()
 
@@ -148,15 +148,19 @@ def train_model(self, model, model_dict, project_dict, train_loader, val_loader,
         # Load best model weights
         model.load_state_dict(torch.load(best_model_params_path))
 
+        # Download entire model
+        local_model_path = os.path.join(tempdir, 'best_model.pt')
+        torch.save(model, local_model_path)
+
         # upload model to s3
-        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pth"
-        s3.upload_file(best_model_params_path, project_dict['bucket'], model_path)
+        model_path = f"{project_dict['prefix']}/{model_dict['name']}_{model_dict['id']}.pt"
+        s3.upload_file(local_model_path, project_dict['bucket'], model_path)
         
         print(model_dict)
         # save model to db
-        model_db = Model.query.get_or_404(model_dict['id'])
-        model_db.saved = model_path
-        db.session.add(model_db)
+        history_db = History.query.get_or_404(history_dict['id'])
+        history_db.model_path = model_path
+        db.session.add(history_db)
         db.session.commit()
         print('model saved to', model_path)
 
@@ -207,7 +211,7 @@ def run_training(self, annotation_ids, project_dict, dataset_dict, model_dict, h
     optimizer = torch.optim.Adam(ml_model.parameters(), lr=1e-4)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    ml_model, training_history = train_model(self, ml_model, model_dict, project_dict, train_loader, val_loader, optimizer, device, NUM_EPOCHS)
+    ml_model, training_history = train_model(self, ml_model, model_dict, project_dict, history_dict, train_loader, val_loader, optimizer, device, NUM_EPOCHS)
 
     precision, recall = validate_epoch(ml_model, val_loader, device)
     history_db = History.query.get_or_404(history_dict['id'])

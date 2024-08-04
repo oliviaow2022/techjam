@@ -1,12 +1,12 @@
 import os
 import zipfile
-import torch
-import json
+import io
+import csv
 
 from werkzeug.utils import secure_filename
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from models import db, Annotation, Project, Dataset, Model, History
-from services.S3ImageDataset import s3, ObjDetDataset
+from services.S3ImageDataset import s3
 from services.objdet import run_training
 
 objdet_routes = Blueprint('objdet', __name__)
@@ -185,3 +185,55 @@ def run_training_model(project_id):
 
     return jsonify({'task_id': task.id}), 200
 
+
+@objdet_routes.route('<int:project_id>/download', methods=['GET'])
+def download_dataset(project_id):
+    Project.query.get_or_404(project_id, description="Project ID not found")
+    dataset = Dataset.query.filter_by(project_id=project_id).first()
+
+    # Query DataInstance records based on dataset_id
+    data_instances = Annotation.query.filter_by(dataset_id=dataset.id).all()
+
+    if not data_instances:
+        return jsonify({"error": "No data instances found"}), 404
+    
+    # Create an in-memory output file
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write CSV header
+    writer.writerow([
+        'ID', 
+        'Filename', 
+        'Image ID', 
+        'Boxes', 
+        'Labels', 
+        'Area', 
+        'Iscrowd', 
+        'Manually Processed', 
+        'Confidence'
+    ])
+
+    # Write CSV rows
+    for instance in data_instances:
+        writer.writerow([
+            instance.id,
+            instance.filename,
+            instance.image_id,
+            instance.boxes or '',  # Handle None or empty list
+            instance.labels or '',  # Handle None or empty list
+            instance.area or '',  # Handle None or empty list
+            instance.iscrowd or '',  # Handle None or empty list
+            instance.manually_processed,
+            instance.confidence
+        ])
+
+    output.seek(0)
+
+    # Send the CSV file as a response
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'{dataset.name}.csv'
+    )

@@ -153,14 +153,12 @@ class Model(db.Model):
     name = db.Column(db.String(256), nullable=False)
     description = db.Column(db.String(256), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-    saved = db.Column(db.String(128), nullable=True)
 
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
-            "project_id": self.project_id,
-            "saved": self.saved
+            "project_id": self.project_id
         }
 
     def __repr__(self):
@@ -177,6 +175,7 @@ class History(db.Model):
     model_id = db.Column(db.Integer, db.ForeignKey('model.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     task_id = db.Column(db.String(256), nullable=True)
+    model_path = db.Column(db.String(128), nullable=True)
 
     def to_dict(self):
         return {
@@ -187,7 +186,8 @@ class History(db.Model):
             "f1": self.f1,
             "auc": self.auc,
             "created_at": self.created_at,
-            "task_id": self.task_id
+            "task_id": self.task_id,
+            "model_path": self.model_path
         }
     
     
