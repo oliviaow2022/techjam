@@ -10,7 +10,7 @@ services:
         - S3_SECRET_ACCESS_KEY=FILL IN
         - REDIS_ENDPOINT='redis://redis:6379/0'
     container_name: flask_app
-    command: gunicorn -b 0.0.0.0:5001 app:app
+    command: gunicorn -b 0.0.0.0:5001 app:flask_app
     volumes:
       - .:/app
     ports:
