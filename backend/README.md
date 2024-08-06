@@ -116,3 +116,9 @@ How to use this in training models:
 1. **run_training in model.py**: Add the decorator @shared_task to your training function (not the api route)
 2. **new_training_job in model.py**: In the API route function, use <training_function_name>.delay() to start running the task in celery. Save the task ID in the task_id column under History in the database and return the task ID to the frontend.
 3. **socketio in app.py**: Use AsyncResult in the websocket to get the status updates of the task on the frontend. Note that only ONE task is monitored at a time per user, coded using the dictionary current_tasks.
+
+## Deploying
+```
+docker-compose build
+docker-compose up
+```
