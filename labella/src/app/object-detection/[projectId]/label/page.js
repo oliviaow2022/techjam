@@ -16,6 +16,7 @@ const ANCHOR_SIZE = 2;
 
 export default function ObjectDetection({ params }) {
   {
+    const apiClient = createApiClient();
     // fetch data logic
     const batchApiEndpoint =
       process.env.NEXT_PUBLIC_API_ENDPOINT +
