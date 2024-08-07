@@ -84,6 +84,7 @@ export default function CreateObjectDetectionProject() {
         const uploadResponse = await axios.post(uploadEndpoint, fileFormData, {
           headers: {
             "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${jwtToken}`,
           },
         });
 

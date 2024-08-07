@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import Navbar from "@/components/nav/NavBar";
 import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
 
 const modelData = [
   {
@@ -29,6 +29,7 @@ const modelData = [
 
 
 export default function TrainModel({ params }) {
+  const apiClient = createApiClient();
   const router = useRouter();
   const [errors, setErrors] = useState({});
   const [selectedModel, setSelectedModel] = useState(null);
@@ -43,7 +44,7 @@ export default function TrainModel({ params }) {
         process.env.NEXT_PUBLIC_API_ENDPOINT + `/senti/${params.projectId}/train`;
 
       try {
-        const response = await axios.post(apiEndpoint, selectedModel);
+        const response = await apiClient.post(apiEndpoint, selectedModel);
         console.log(response)
         if (response.status == 200) {
           toast.success(`Job ID ${response.data.task_id} created`)

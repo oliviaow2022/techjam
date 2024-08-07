@@ -1,25 +1,18 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
 import LabelButton from "@/components/LabelButton";
 import ImageSlider from "@/components/ImageSlider";
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
 import Navbar from "@/components/nav/NavBar";
-import { toast } from "react-hot-toast";
 
 export default function Label({ params }) {
+  const apiClient = createApiClient();
   const batchApiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}/batch`;
   const datasetApiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}`;
-  const jwtToken = localStorage.getItem("jwt");
-
-  const config = {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwtToken}`,
-    },
-  };
 
   const [images, setImages] = useState([]);
   const [datasetData, setDatasetData] = useState({});
@@ -29,7 +22,7 @@ export default function Label({ params }) {
   const [multilabelslist, setMultilabelslist] = useState([]);
   const fetchBatch = async () => {
     try {
-      const batchResponse = await axios.post(batchApiEndpoint, {});
+      const batchResponse = await apiClient.post(batchApiEndpoint, {});
       setImages(batchResponse.data);
       console.log(batchResponse.data);
     } catch (error) {
@@ -43,7 +36,7 @@ export default function Label({ params }) {
     // to get class_to_label_mapping
     const fetchDataset = async () => {
       try {
-        const datasetResponse = await axios.get(datasetApiEndpoint);
+        const datasetResponse = await apiClient.get(datasetApiEndpoint);
         setDatasetData(datasetResponse.data);
       } catch (error) {
         setError(error.message);
@@ -79,7 +72,7 @@ export default function Label({ params }) {
       process.env.NEXT_PUBLIC_API_ENDPOINT +
       `/instance/${images[currentIndex].id}/set_label`;
     try {
-      const response = await axios.post(apiEndpoint, {
+      const response = await apiClient.post(apiEndpoint, {
         labels: classInteger,
       });
       if (response.status === 200) {
@@ -110,7 +103,7 @@ export default function Label({ params }) {
         process.env.NEXT_PUBLIC_API_ENDPOINT +
         `/instance/${images[currentIndex].id}/set_label`;
       try {
-        const response = await axios.post(apiEndpoint, {
+        const response = await apiClient.post(apiEndpoint, {
           labels: formattedClassInteger,
         });
         if (response.status === 200) {

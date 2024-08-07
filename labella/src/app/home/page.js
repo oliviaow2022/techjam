@@ -7,7 +7,9 @@ import { useSelector } from "react-redux"
 import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/nav/NavBar";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
+
+const apiClient = createApiClient();
 
 export default function Home() {
   const router = useRouter();
@@ -21,7 +23,7 @@ export default function Home() {
   useEffect(() => {
     const fetchUserProjects = async () => {
       try {
-        const response = await axios.get(apiEndpoint);
+        const response = await apiClient.get(apiEndpoint);
         console.log(response.data);
         setUserProjects(response.data);
       } catch (err) {

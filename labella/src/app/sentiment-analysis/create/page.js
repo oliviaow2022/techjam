@@ -65,9 +65,6 @@ export default function SentimentAnalysis() {
         };
         console.log(payload);
 
-        // const jwtToken = localStorage.getItem("jwt");
-        console.log("Token from slice:", jwtToken);
-
         const createResponse = await axios.post(createEndpoint, payload, {
           headers: {
             "Content-Type": "application/json",
@@ -87,6 +84,7 @@ export default function SentimentAnalysis() {
         const uploadResponse = await axios.post(uploadEndpoint, fileFormData, {
           headers: {
             "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${jwtToken}`,
           },
         });
 

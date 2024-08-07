@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
 
 import ObjectDetectionSideNav from "@/components/nav/ObjectDetectionSideNav";
 import EpochChart from "@/components/EpochChart";
@@ -11,6 +11,7 @@ import TaskMonitor from "@/components/TaskMonitor";
 import Arrow from "@/components/Arrow";
 
 export default function ObjectDetectionStatistics({ params }) {
+  const apiClient = createApiClient();
   const apiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/history/${params.projectId}/info`;
 
@@ -19,7 +20,7 @@ export default function ObjectDetectionStatistics({ params }) {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(apiEndpoint, {
+      const response = await apiClient.get(apiEndpoint, {
         params: {
           index: historyIndex,
         },
@@ -39,7 +40,7 @@ export default function ObjectDetectionStatistics({ params }) {
   const handleDownloadModel = async (historyId) => {
     try {
       toast.success("Downloading file");
-      let response = await axios.get(
+      let response = await apiClient.get(
         process.env.NEXT_PUBLIC_API_ENDPOINT + `/model/${historyId}/download`,
         {
           responseType: "blob", // Important: 'blob' indicates binary data
@@ -64,7 +65,7 @@ export default function ObjectDetectionStatistics({ params }) {
   const handleDownloadDataset = async (projectId) => {
     try {
       // Make GET request to backend endpoint
-      const response = await axios.get(
+      const response = await apiClient.get(
         process.env.NEXT_PUBLIC_API_ENDPOINT + `/objdet/${projectId}/download`,
         {
           responseType: "blob", // Important to handle file download

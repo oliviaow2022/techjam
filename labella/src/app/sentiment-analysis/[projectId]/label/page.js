@@ -7,9 +7,10 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/nav/NavBar";
 import SentimentAnalysisSideNav from "@/components/nav/SentimentAnalysisSideNav";
 import LabelButton from "@/components/LabelButton";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
 
 export default function SentimentAnalysisLabelling({ params }) {
+  const apiClient = createApiClient();
   const datasetApiEndpoint =
     process.env.NEXT_PUBLIC_API_ENDPOINT + `/dataset/${params.projectId}`;
   const batchApiEndpoint =
@@ -27,7 +28,7 @@ export default function SentimentAnalysisLabelling({ params }) {
       `/instance/${batchData[currentIndex].id}/set_label`;
 
     try {
-      const response = await axios.post(apiEndpoint, {
+      const response = await apiClient.post(apiEndpoint, {
         labels: classInteger,
       });
       if (response.status === 200) {
@@ -46,7 +47,7 @@ export default function SentimentAnalysisLabelling({ params }) {
   useEffect(() => {
     const fetchDataset = async () => {
       try {
-        const datasetResponse = await axios.get(datasetApiEndpoint);
+        const datasetResponse = await apiClient.get(datasetApiEndpoint);
         console.log(datasetResponse.data);
         setDatasetData(datasetResponse.data);
       } catch (error) {
@@ -58,7 +59,7 @@ export default function SentimentAnalysisLabelling({ params }) {
 
     const fetchBatch = async () => {
       try {
-        const batchResponse = await axios.post(batchApiEndpoint, {
+        const batchResponse = await apiClient.post(batchApiEndpoint, {
           batch_size: 20,
         });
         setBatchData(batchResponse.data);
@@ -98,7 +99,7 @@ export default function SentimentAnalysisLabelling({ params }) {
       `/senti/${projectId}/zero-shot`;
 
       try {
-        const response = await axios.post(apiEndpoint);
+        const response = await apiClient.post(apiEndpoint);
         if (response.status === 200) {
           toast.success(`Job ID ${response.data.task_id} started`);
         }

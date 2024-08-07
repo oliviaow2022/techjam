@@ -113,6 +113,7 @@ export default function ImageClassification() {
           {
             headers: {
               "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${jwtToken}`,
             },
           }
         );

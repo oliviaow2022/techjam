@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ImageClassificationSideNav from "@/components/nav/ImageClassificationSideNav";
 import Navbar from "@/components/nav/NavBar";
 import InputBox from "@/components/forms/InputBox";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
 
 const models = [
   {
@@ -33,6 +33,7 @@ const models = [
 ];
 
 export default function ImageClassificationTrainModel({ params }) {
+  const apiClient = createApiClient();
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -56,7 +57,7 @@ export default function ImageClassificationTrainModel({ params }) {
           process.env.NEXT_PUBLIC_API_ENDPOINT +
           `/model/${params.projectId}/train`;
         console.log(formData);
-        const response = await axios.post(apiEndpoint, formData);
+        const response = await apiClient.post(apiEndpoint, formData);
 
         console.log(response);
 

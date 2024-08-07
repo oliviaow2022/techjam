@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/nav/NavBar";
-import axios from "axios";
+import createApiClient from "@/components/axiosInstance";
 import ObjectDetectionSideNav from "@/components/nav/ObjectDetectionSideNav";
 import Arrow from "@/components/Arrow";
 
@@ -32,7 +32,7 @@ export default function ObjectDetection({ params }) {
     const fetchBatch = async () => {
       try {
         setIsLoading(true);
-        const batchResponse = await axios.post(batchApiEndpoint, {});
+        const batchResponse = await apiClient.post(batchApiEndpoint, {});
         console.log(batchResponse.data);
         setImages(batchResponse.data);
 
@@ -63,7 +63,7 @@ export default function ObjectDetection({ params }) {
       const fetchDataset = async () => {
         try {
           setIsLoading(true);
-          const datasetResponse = await axios.get(datasetApiEndpoint);
+          const datasetResponse = await apiClient.get(datasetApiEndpoint);
           setDatasetData(datasetResponse.data);
           console.log(datasetResponse.data);
         } catch (error) {
@@ -104,7 +104,7 @@ export default function ObjectDetection({ params }) {
         process.env.NEXT_PUBLIC_API_ENDPOINT +
         `/objdet/${images[currentIndex].id}/label`;
 
-      const updateResponse = await axios.post(updateEndpoint, {
+      const updateResponse = await apiClient.post(updateEndpoint, {
         annotations: rectangles,
         image_display_ratio: imageDisplayRatio,
       });

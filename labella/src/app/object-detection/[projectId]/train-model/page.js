@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ObjectDetectionSideNav from "@/components/nav/ObjectDetectionSideNav";
 import Navbar from "@/components/nav/NavBar";
 import InputBox from "@/components/forms/InputBox";
-import axios from "axios"
+import createApiClient from "@/components/axiosInstance";
 
 
 const models = [
@@ -20,6 +20,7 @@ const models = [
 
 export default function ObjectDetectionTrainModel({ params }) {
   const router = useRouter();
+  const apiClient = createApiClient();
 
   const [formData, setFormData] = useState({
     batch_size: 128,
@@ -70,7 +71,7 @@ export default function ObjectDetectionTrainModel({ params }) {
           process.env.NEXT_PUBLIC_API_ENDPOINT +
           `/objdet/${params.projectId}/train`;
         console.log(formData);
-        const response = await axios.post(apiEndpoint, formData);
+        const response = await apiClient.post(apiEndpoint, formData);
 
         console.log(response);
 
