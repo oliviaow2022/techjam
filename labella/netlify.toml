@@ -1,5 +1,7 @@
 [build]
+  publish = "/labella/"
   command = "npm run build"
+
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
