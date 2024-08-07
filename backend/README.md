@@ -91,7 +91,7 @@ celery -A app.celery_app worker --loglevel=debug
 
 start a celery worker process on WINDOWS (not sure if this works)
 ```
-celery -A app.celery_app worker --loglevel=debug --pool=solo
+celery -A app.celery_app worker --loglevel=info --pool=solo
 ```
 
 start a celery worker process on MACOS

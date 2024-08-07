@@ -1,6 +1,7 @@
 import torch
 import os, time
 import torchvision
+import numpy as np
 
 from tempfile import TemporaryDirectory
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -69,6 +70,34 @@ def train_epoch(model, dataloader, criterion, optimizer, device):
     except Exception as error:
         print(error)
 
+def multiclass_train_epoch(model, dataloader, criterion, optimizer, device):
+    model.train()
+    running_loss = 0.0
+    total = 0
+    correct = 0
+    
+    progress_bar = tqdm(dataloader, desc='Training', leave=False)
+    for inputs, labels in progress_bar:
+        inputs, labels = inputs.to(device), labels.to(device)
+        optimizer.zero_grad()
+        labels = labels.float()
+        
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item() * inputs.size(0)
+        
+        predictions = torch.round(torch.sigmoid(outputs))
+        print("Predictions (shape, values):", predictions.shape, predictions)
+        
+        total += labels.numel()  # Total number of labels (for accuracy calculation)
+        correct += (predictions == labels).sum().item()    
+    epoch_loss = running_loss / len(dataloader.dataset)
+    accuracy = correct / total
+    print("accuracy:", accuracy)
+    return epoch_loss, accuracy
 
 def validate_epoch(model, dataloader, criterion, device):
     model.eval()
@@ -93,6 +122,73 @@ def validate_epoch(model, dataloader, criterion, device):
     accuracy = correct / total
     return epoch_loss, accuracy
 
+def multiclass_validate_epoch(model, dataloader, criterion, device):
+    model.eval()
+    running_loss = 0.0
+    total = 0
+    correct = 0
+    all_labels = []
+    all_predictions = []
+    
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            labels = labels.float()  # Ensure labels are float
+            
+            outputs = model(inputs)
+            outputs = outputs.float()  # Ensure outputs are float
+            
+            loss = criterion(outputs, labels)
+            running_loss += loss.item() * inputs.size(0)
+            
+            predictions = torch.round(torch.sigmoid(outputs))
+            all_labels.append(labels.cpu().numpy())
+            all_predictions.append(predictions.cpu().numpy())
+    
+    all_labels = np.concatenate(all_labels, axis=0)
+    all_predictions = np.concatenate(all_predictions, axis=0)
+    
+    epoch_loss = running_loss / len(dataloader.dataset)
+    accuracy = calculate_metrics(all_labels, all_predictions)
+    
+    return epoch_loss, accuracy
+
+def multiclass_accuracy_score(y_true, y_pred):
+    temp = 0
+    for i in range(y_true.shape[0]):
+        temp += sum(np.logical_and(y_true[i], y_pred[i])) / sum(np.logical_or(y_true[i], y_pred[i]))
+    return temp / y_true.shape[0]
+    
+def multiclass_precision_score(y_true, y_pred):
+    temp = 0
+    for i in range(y_true.shape[0]):
+        if sum(y_pred[i]) == 0:
+            continue
+        temp+= sum(np.logical_and(y_true[i], y_pred[i]))/ sum(y_pred[i])
+    return temp/ y_true.shape[0]
+
+def mutliclass_recall_score(y_true, y_pred):
+      temp = 0
+      for i in range(y_true.shape[0]):
+          if sum(y_true[i]) == 0:
+              continue
+          temp+= sum(np.logical_and(y_true[i], y_pred[i]))/ sum(y_true[i])
+      return temp/ y_true.shape[0]
+
+def multiclass_f1_score(y_true, y_pred):
+    temp = 0
+    for i in range(y_true.shape[0]):
+        if (sum(y_true[i]) == 0) and (sum(y_pred[i]) == 0):
+            continue
+        temp+= (2*sum(np.logical_and(y_true[i], y_pred[i])))/ (sum(y_true[i])+sum(y_pred[i]))
+    return temp/ y_true.shape[0]
+
+def calculate_metrics(labels, predictions):
+    accuracy = multiclass_accuracy_score(labels, predictions)
+    
+    return accuracy
+
 
 def train_model(self, model, model_dict, project_dict, history_dict, train_dataloader, val_dataloader, criterion, optimizer, scheduler, device, NUM_EPOCHS):
 
@@ -106,10 +202,15 @@ def train_model(self, model, model_dict, project_dict, history_dict, train_datal
         history = []
 
         for epoch in range(NUM_EPOCHS):
+            if project_dict["type"] == "Multilabel Classification":
+                train_loss, train_acc = multiclass_train_epoch(model, train_dataloader, criterion, optimizer, device)
+                scheduler.step()
+                val_loss, val_acc = multiclass_validate_epoch(model, val_dataloader, criterion, device)
+            else:
             # Each epoch has a training and validation phase
-            train_loss, train_acc = train_epoch(model, train_dataloader, criterion, optimizer, device)
-            scheduler.step()
-            val_loss, val_acc = validate_epoch(model, val_dataloader, criterion, device)
+                train_loss, train_acc = train_epoch(model, train_dataloader, criterion, optimizer, device)
+                scheduler.step()
+                val_loss, val_acc = validate_epoch(model, val_dataloader, criterion, device)
 
             # Cache metrics for later comparison
             history.append([train_acc, val_acc, train_loss, val_loss])
@@ -175,6 +276,33 @@ def compute_metrics(model, dataloader, device):
 
     return accuracy, precision, recall, f1
 
+def multiclass_compute_metrics(model, dataloader, device):
+    model.eval()
+
+    y_labels = []
+    y_pred = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            labels = labels.float()
+            print(labels)
+
+            outputs = model(inputs)
+            outputs = outputs.float()
+
+            predictions = torch.round(torch.sigmoid(outputs))
+            
+            y_labels.extend(labels.numpy())
+            y_pred.extend(predictions.numpy())
+
+    y_labels = np.array(y_labels)
+    y_pred = np.array(y_pred)
+    accuracy = multiclass_accuracy_score(y_labels, y_pred)
+    precision = multiclass_precision_score(y_labels, y_pred)
+    recall = mutliclass_recall_score(y_labels, y_pred)
+    f1 = multiclass_f1_score(y_labels, y_pred)
+    return accuracy, precision, recall, f1
 
 def get_image_classification_model(model_name, num_classes):
     if model_name == 'ResNet-18':
@@ -193,7 +321,16 @@ def get_image_classification_model(model_name, num_classes):
         ml_model = torchvision.models.convnext_base(weights='DEFAULT')
         num_ftrs = ml_model.classifier[2].in_features
         ml_model.classifier[2] = torch.nn.Linear(num_ftrs, num_classes)
-
+    elif model_name == 'ResNet-50':
+        ml_model = torchvision.models.resnet50(weights='DEFAULT')
+        num_ftrs = ml_model.fc.in_features
+        ml_model.fc = ml_model.fc = torch.nn.Sequential(
+            torch.nn.Linear(num_ftrs, 512),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.5),
+            torch.nn.Linear(512, num_classes),  # Adjust output size based on number of classes
+            torch.nn.Softmax(dim=1)  # Sigmoid activation for multi-label classification
+        )
     return ml_model
 
 
@@ -226,24 +363,33 @@ def run_training(self, project_dict, dataset_dict, model_dict, history_dict, NUM
 
         dataiter = iter(train_dataloader)
         images, labels = next(dataiter)
-        print(images.shape, labels.shape)
+        print(f"shapes: {images.shape}, {labels.shape}")    
 
-        ml_model = get_image_classification_model(model_dict['name'], dataset_dict['num_classes'])
+        try:
+            ml_model = get_image_classification_model(model_dict['name'], dataset_dict['num_classes'])
+            print("Model created successfully")
+        except Exception as e:
+            print(f"Error creating model: {e}")
+            return
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        criterion = torch.nn.CrossEntropyLoss()
+        if project_dict["type"] == "Multilabel Classification":
+            criterion = torch.nn.BCEWithLogitsLoss()
+        else: 
+            criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(ml_model.parameters(), lr=0.001, momentum=0.9)
         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
         ml_model, model_history = train_model(self, ml_model, model_dict, project_dict, history_dict, train_dataloader, val_dataloader, criterion, optimizer, exp_lr_scheduler, device, NUM_EPOCHS)
-
-        accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
+        if project_dict["type"] == "Multilabel Classification":
+            accuracy, precision, recall, f1 = multiclass_compute_metrics(ml_model, val_dataloader, device)
+        else: 
+            accuracy, precision, recall, f1 = compute_metrics(ml_model, val_dataloader, device)
 
         history_db = History.query.get_or_404(history_dict['id'])
         history_db.accuracy = accuracy
         history_db.precision = precision
         history_db.recall = recall
         history_db.f1 = f1
-
         db.session.add(history_db)
         db.session.commit()
 
