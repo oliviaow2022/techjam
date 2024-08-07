@@ -9,12 +9,14 @@ import threading
 from services.S3ImageDataset import s3
 from tempfile import TemporaryDirectory
 from botocore.exceptions import ClientError
+from flask_jwt_extended import jwt_required
 
 
 model_routes = Blueprint('model', __name__)
 
 
 @model_routes.route('/<int:project_id>/train', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Model'],
     'parameters': [
@@ -89,6 +91,7 @@ def new_training_job(project_id):
 
 # for debugging only
 @model_routes.route('/all', methods=['GET'])
+@jwt_required()
 def get_all_models():
     models = Model.query.all()
     model_list = [model.to_dict() for model in models]
@@ -96,6 +99,7 @@ def get_all_models():
 
 
 @model_routes.route('<int:history_id>/download', methods=['GET'])
+@jwt_required()
 def download_model(history_id):
     history = History.query.get_or_404(history_id)
     model_db = Model.query.get_or_404(history.model_id)

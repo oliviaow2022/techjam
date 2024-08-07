@@ -12,10 +12,12 @@ from flasgger import swag_from
 from werkzeug.utils import secure_filename
 from services.S3ImageDataset import s3
 from services.dataset import get_dataset_config
+from flask_jwt_extended import jwt_required
 
 dataset_routes = Blueprint('dataset', __name__)
 
 @dataset_routes.route('/create', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Dataset'],
     'parameters': [
@@ -73,6 +75,7 @@ def create_dataset():
     ]
 })
 @dataset_routes.route('/<int:id>/df', methods=['GET'])
+@jwt_required()
 def return_dataframe(id):
     dataset = Dataset.query.get_or_404(id, description="Dataset ID not found")
     data_instances = DataInstance.query.filter_by(dataset_id=dataset.id).all()
@@ -82,6 +85,7 @@ def return_dataframe(id):
 
 
 @dataset_routes.route('/<int:project_id>/download', methods=['GET'])
+@jwt_required()
 def export_csv(project_id):
     Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project_id).first()
@@ -121,6 +125,7 @@ def export_csv(project_id):
 
 
 @dataset_routes.route('/<int:project_id>/batch', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Dataset'],
     'summary': 'Return a batch of data points with no labels',
@@ -176,6 +181,7 @@ def return_batch_for_labelling(project_id):
 
 # for debugging only
 @dataset_routes.route('/all', methods=['GET'])
+@jwt_required()
 def get_all_datasets():
     datasets = Dataset.query.all()
     dataset_list = [dataset.to_dict() for dataset in datasets]
@@ -195,6 +201,7 @@ def get_all_datasets():
     ]
 })
 @dataset_routes.route('/<int:project_id>', methods=['GET'])
+@jwt_required()
 def get_dataset(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
@@ -206,6 +213,7 @@ def get_dataset(project_id):
 
 
 @dataset_routes.route('/<int:id>/upload', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Dataset'],
     'summary': 'Upload a zipped folder to a dataset',
@@ -291,6 +299,7 @@ def upload_files(id):
 
 
 @dataset_routes.route('/update_class_to_label_mapping/<int:dataset_id>', methods=['PUT'])
+@jwt_required()
 def update_class_to_label_mapping(dataset_id):
     data = request.get_json()
     class_to_label_mapping = data.get('class_to_label_mapping')

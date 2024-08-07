@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from models import db, User, Project
 from flasgger import swag_from
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required
 
 user_routes = Blueprint('user', __name__)
 
@@ -103,6 +103,7 @@ def login():
 
 # for debugging only
 @user_routes.route('/all', methods=['GET'])
+@jwt_required()
 def get_all_users():
     users = User.query.all()
     user_list = [user.to_dict() for user in users]
@@ -110,6 +111,7 @@ def get_all_users():
 
 
 @user_routes.route('/<int:user_id>/projects', methods=['GET'])
+@jwt_required()
 @swag_from({
     'summary': 'Get all projects for a user_id',
     'tags': ['Project'],

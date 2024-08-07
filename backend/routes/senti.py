@@ -9,11 +9,13 @@ from tempfile import TemporaryDirectory
 from io import BytesIO
 from botocore.exceptions import ClientError
 from services.S3ImageDataset import s3
+from flask_jwt_extended import jwt_required
 
 senti_routes = Blueprint('senti', __name__)
 
 
 @senti_routes.route('<int:dataset_id>/upload', methods=['POST'])
+@jwt_required()
 def upload_file(dataset_id):
     text_column = request.form.get("text_column")
     file = request.files['file']
@@ -46,6 +48,7 @@ def upload_file(dataset_id):
     return jsonify({"message": "File uploaded successfully"}), 200
 
 @senti_routes.route('<int:project_id>/zero-shot', methods=['POST'])
+@jwt_required()
 def zero_shot(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project.id).first()
@@ -56,6 +59,7 @@ def zero_shot(project_id):
 
 
 @senti_routes.route('<int:project_id>/train', methods=['POST'])
+@jwt_required()
 def train_model(project_id):
     print(request.json)
     model_name = request.json.get('model_name')
@@ -90,6 +94,7 @@ def train_model(project_id):
 
 
 @senti_routes.route('<int:history_id>/download', methods=['GET'])
+@jwt_required()
 def download_model(history_id):
     history = History.query.get_or_404(history_id)
     model_db = Model.query.get_or_404(history.model_id, description="Model ID not found")

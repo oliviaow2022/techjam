@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
 from models import db, DataInstance, Dataset
 from flasgger import swag_from
+from flask_jwt_extended import jwt_required
 
 data_instance_routes = Blueprint('data_instance', __name__)
 
 @data_instance_routes.route('/create', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['DataInstance'],
     'parameters': [
@@ -40,6 +42,7 @@ def create_data_instance():
 
 
 @data_instance_routes.route('/<int:id>/set_label', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['DataInstance'],
     'summary': 'Update label from manual labelling',

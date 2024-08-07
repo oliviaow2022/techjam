@@ -13,7 +13,7 @@ general_routes = Blueprint('general', __name__)
 @jwt_required()
 @swag_from({
     'description': 'Create a project, dataset, and model in one API call.',
-    'security': [{'Bearer': ['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcyMzA0MjQwMywianRpIjoiMjQ0NDZiYWMtZDBjNC00NmM1LThkNjgtYzU2NDAzYjliZDI5IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzIzMDQyNDAzLCJjc3JmIjoiOGNhMTE4ZmQtOWZjYi00ZjZkLThmOTEtZjMxOGRiNWU3ODVmIiwiZXhwIjoxNzIzMDQzMzAzfQ.SKGaA5jdUBRJ0Wm7FTp4cizZBnfslbzpyOmxlcyvEJA']}],
+    'security': [{'Bearer': []}],
     'parameters': [
         {
             'name': 'Authorization',

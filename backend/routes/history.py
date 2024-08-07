@@ -1,11 +1,13 @@
 from flask import Blueprint, request, jsonify
 from models import db, History, Epoch, Project, Model
 from flasgger import swag_from
+from flask_jwt_extended import jwt_required
 
 history_routes = Blueprint('history', __name__)
 
 # for debugging only
 @history_routes.route('/all', methods=['GET'])
+@jwt_required()
 def get_all_history():
     history = History.query.all()
     history_list = [h.to_dict() for h in history]
@@ -13,6 +15,7 @@ def get_all_history():
 
 
 @history_routes.route('/<int:project_id>/info', methods=['GET'])
+@jwt_required()
 def get_project_history(project_id):
     index = int(request.args.get('index', 0))
 
@@ -42,6 +45,7 @@ def get_project_history(project_id):
 
 
 @history_routes.route('/<int:id>/info', methods=['GET'])
+@jwt_required()
 @swag_from({
     'tags': ['History'],
     'summary': 'Get model statistics',

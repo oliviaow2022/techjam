@@ -8,10 +8,12 @@ from flask import Blueprint, request, jsonify, send_file
 from models import db, Annotation, Project, Dataset, Model, History
 from services.S3ImageDataset import s3
 from services.objdet import run_training
+from flask_jwt_extended import jwt_required
 
 objdet_routes = Blueprint('objdet', __name__)
 
 @objdet_routes.route('<int:dataset_id>/upload', methods=['POST'])
+@jwt_required()
 def upload_file(dataset_id):
     print('UPLOADING FILE')
     print(request.files)
@@ -70,12 +72,14 @@ def upload_file(dataset_id):
 
 # for debugging only
 @objdet_routes.route('<int:dataset_id>/all', methods=['GET'])
+@jwt_required()
 def view_annotations(dataset_id):
     annotations = Annotation.query.filter_by(dataset_id=dataset_id)
     return [a.to_dict() for a in annotations]
 
     
 @objdet_routes.route('<int:project_id>/batch', methods=['POST'])
+@jwt_required()
 def return_batch(project_id): 
     batch_size = request.json.get('batch_size')
 
@@ -104,6 +108,7 @@ def return_batch(project_id):
 
 
 @objdet_routes.route('<int:annotation_id>/label', methods=['POST'])
+@jwt_required()
 def label_data(annotation_id):
     # format from frontend: [{x1: 74, y1: 62, x2: 401, y2: 365, label: 'bus'}]
     data = request.json.get('annotations')
@@ -144,6 +149,7 @@ def label_data(annotation_id):
 
 
 @objdet_routes.route('<int:project_id>/train', methods=['POST'])
+@jwt_required()
 def run_training_model(project_id):
 
     print('running training...')
@@ -187,6 +193,7 @@ def run_training_model(project_id):
 
 
 @objdet_routes.route('<int:project_id>/download', methods=['GET'])
+@jwt_required()
 def download_dataset(project_id):
     Project.query.get_or_404(project_id, description="Project ID not found")
     dataset = Dataset.query.filter_by(project_id=project_id).first()

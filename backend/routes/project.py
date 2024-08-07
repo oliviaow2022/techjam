@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required
 project_routes = Blueprint('project', __name__)
 
 @project_routes.route('/create', methods=['POST'])
+@jwt_required()
 @swag_from({
     'tags': ['Project'],
     'parameters': [
@@ -69,6 +70,7 @@ def create_project():
 
 # for debugging only
 @project_routes.route('/all', methods=['GET'])
+@jwt_required()
 def get_all_projects():
     projects = Project.query.all()
     project_list = [project.to_dict() for project in projects]
@@ -76,6 +78,7 @@ def get_all_projects():
 
 
 @project_routes.route('/<int:project_id>/models', methods=['GET'])
+@jwt_required()
 def get_models_for_project(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
     models = Model.query.filter(
@@ -87,6 +90,7 @@ def get_models_for_project(project_id):
 
 
 @project_routes.route('/<int:project_id>/delete', methods=['DELETE'])
+@jwt_required()
 def delete_project(project_id):
     project = Project.query.get_or_404(project_id, description="Project ID not found")
 
