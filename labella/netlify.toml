@@ -1,5 +1,5 @@
 [build]
-  publish = "/labella/"
+  publish = "/"
   command = "npm run build"
 
 
