@@ -4,4 +4,3 @@
 
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
-  NEXT_PUBLIC_API_ENDPOINT= "http://13.212.53.22"
