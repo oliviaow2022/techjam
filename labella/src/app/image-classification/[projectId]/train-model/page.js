@@ -30,6 +30,11 @@ const models = [
     description:
       "ConvNext Base is a foundational CNN architecture for computer vision tasks, featuring convolutional layers for feature extraction and flexible design for various applications.",
   },
+  {
+    name: "ResNet-50",
+    description:
+      "ResNet-50 is CNN architecture that belongs to the ResNet (Residual Networks) family, a series of models designed to address the challenges associated with training deep neural networks."
+  }
 ];
 
 export default function ImageClassificationTrainModel({ params }) {
